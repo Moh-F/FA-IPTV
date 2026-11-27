@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FA IPTV</title>
+<style>
+:root{color-scheme:light dark;--bg:#070b1f;--card:#121937;--fg:#e6e9f5;--mut:#a7afcf;--acc:#22d3ee;--acc2:#8b5cf6}
+@media (prefers-color-scheme:light){:root{--bg:#f4f6fd;--card:#fff;--fg:#0b1024;--mut:#4a5275;--acc:#0e7490;--acc2:#6d28d9}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif;padding:16px;max-width:760px;margin-inline:auto}
+h1{font-size:22px;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:15px;color:var(--acc);margin:22px 0 8px;text-transform:uppercase;letter-spacing:.04em}
+.card{background:var(--card);border-radius:14px;padding:14px;margin:8px 0}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--mut);background:transparent;color:inherit;font:inherit}
+.tabs{display:flex;gap:8px}.tabs button{flex:1;background:transparent;color:var(--fg);border:1px solid var(--mut)}.tabs button.on{background:var(--acc);color:#000;border-color:var(--acc)}
+button,a.btn{background:var(--acc);color:#000;border:0;border-radius:10px;padding:11px 14px;text-decoration:none;font:inherit;cursor:pointer;display:inline-block}
+.go{width:100%;margin-top:14px;font-weight:bold}
+#log{font:12px ui-monospace,monospace;background:#000;color:#ddd;border-radius:10px;padding:8px;height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.e{color:#ff6b6b}.w{color:#ffd166}#st{margin-top:10px;font-size:14px}#accs div{padding:6px 0;border-bottom:1px solid #8883}
+</style></head><body>
+<h1>FA IPTV</h1>
+<div class="card">
+ <div class="tabs"><button id="tx" class="on">Xtream Codes</button><button id="tm">M3U / M3U8</button></div>
+ <div id="fx">
+  <label id="l_name">Name</label><input id="name">
+  <label id="l_srv">Server</label><input id="server" placeholder="http://example.com:8080" inputmode="url" autocapitalize="off">
+  <label id="l_user">Username</label><input id="username" autocapitalize="off" autocomplete="off">
+  <label id="l_pass">Password</label><input id="password" type="password" autocomplete="off">
+ </div>
+ <div id="fm" hidden>
+  <label id="l_url">M3U URL</label><input id="m3uUrl" inputmode="url" autocapitalize="off">
+  <label id="l_epg">EPG (XMLTV) URL</label><input id="epgUrl" inputmode="url" autocapitalize="off">
+ </div>
+ <button class="go" id="send">Send to TV</button>
+ <div id="st"></div>
+</div>
+<h2 id="h_acc">Accounts on the TV</h2><div class="card" id="accs"></div>
+<h2>Log</h2><div style="display:flex;gap:8px;margin-bottom:8px"><a class="btn" id="dl">Download</a><button id="clr">Clear view</button></div>
+<div id="log"></div>
+<script>
+const T=new URLSearchParams(location.search).get('token')||'';
+const L=(navigator.language||'en').slice(0,2);const lang=['ar','de'].includes(L)?L:'en';
+const S={
+ ar:{l_name:'الاسم',l_srv:'عنوان السيرفر',l_user:'اسم المستخدم',l_pass:'كلمة المرور',l_url:'رابط القائمة M3U',l_epg:'رابط دليل EPG (اختياري)',send:'إرسال إلى الشاشة',h_acc:'الحسابات على الشاشة',ok:'✓ تمت الإضافة، الشاشة تحمّل القائمة الآن',err:'✗ خطأ: '},
+ de:{l_name:'Name',l_srv:'Server',l_user:'Benutzername',l_pass:'Passwort',l_url:'M3U-Link',l_epg:'EPG-Link (optional)',send:'An den Fernseher senden',h_acc:'Konten auf dem Fernseher',ok:'✓ Hinzugefügt, der Fernseher lädt jetzt die Liste',err:'✗ Fehler: '},
+ en:{ok:'✓ Added, the TV is loading the list now',err:'✗ Error: '}
+}[lang];
+if(lang==='ar'){document.documentElement.dir='rtl';document.documentElement.lang='ar'}
+for(const k in S){const e=document.getElementById(k);if(e)e.textContent=S[k]}
+const q=p=>p+(p.includes('?')?'&':'?')+'token='+encodeURIComponent(T);
+let type='xtream';
+const $=id=>document.getElementById(id);
+$('tx').onclick=()=>{type='xtream';$('tx').className='on';$('tm').className='';$('fx').hidden=false;$('fm').hidden=true};
+$('tm').onclick=()=>{type='m3u';$('tm').className='on';$('tx').className='';$('fm').hidden=false;$('fx').hidden=true};
+async function loadAccs(){try{const a=await fetch(q('/api/accounts')).then(r=>r.json());$('accs').innerHTML='';a.forEach(x=>{const d=document.createElement('div');d.textContent=(x.active?'● ':'○ ')+x.name+' ('+x.type+')';$('accs').appendChild(d)})}catch(e){}}
+$('send').onclick=async()=>{
+ const o={type,name:$('name').value,server:$('server').value,username:$('username').value,password:$('password').value,m3uUrl:$('m3uUrl').value,epgUrl:$('epgUrl').value};
+ try{const r=await fetch(q('/api/account'),{method:'POST',body:JSON.stringify(o)});
+  if(r.ok){$('st').textContent=S.ok;$('password').value='';setTimeout(loadAccs,800)}else $('st').textContent=S.err+await r.text()}
+ catch(e){$('st').textContent=S.err+e}
+};
+$('dl').href=q('/download');
+const log=$('log');$('clr').onclick=()=>log.innerHTML='';
+function add(line){try{const o=JSON.parse(line);const d=document.createElement('div');d.className=o.l==='error'||o.l==='fatal'?'e':o.l==='warn'?'w':'';
+ d.textContent=o.t.slice(11,19)+' ['+o.l+'] '+o.tag+': '+o.m+(o.st?'\n'+o.st:'');log.appendChild(d);log.scrollTop=log.scrollHeight}catch(e){}}
+const es=new EventSource(q('/stream'));es.onmessage=e=>add(e.data);
+loadAccs();
+</script></body></html>
