@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -180,6 +181,10 @@ fun LiveScreen(wide: Boolean) {
 @Composable
 private fun ChannelList(channels: List<Live>, modifier: Modifier, acc: Account, onPlay: (Live) -> Unit, onMenu: (Live) -> Unit, onFocus: (Live) -> Unit) {
     if (channels.isEmpty()) { Box(modifier.fillMaxHeight()) { EmptyBox(stringResource(R.string.empty_list)) }; return }
+    // TV: put the focus back on the channel that was played last
+    val lastId = Prefs.data.recentLive[acc.id]?.firstOrNull()?.takeIf { id -> channels.any { it.id == id } }
+    val lastFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { if (UiEnv.isTv && lastId != null) { delay(150); runCatching { lastFocus.requestFocus() } } }
     @Suppress("UNUSED_VARIABLE") val epgTick = Repo.epgVersion
     LazyColumn(modifier.fillMaxHeight(), contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         items(channels, key = { it.id }) { ch ->
@@ -187,6 +192,7 @@ private fun ChannelList(channels: List<Live>, modifier: Modifier, acc: Account, 
             FocusCard(
                 onClick = { onPlay(ch) }, onLongClick = { onMenu(ch) }, onFocus = { onFocus(ch) },
                 modifier = Modifier.fillMaxWidth(), zoom = 1.01f,
+                focusRequester = if (ch.id == lastId) lastFocus else null,
             ) {
                 Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(

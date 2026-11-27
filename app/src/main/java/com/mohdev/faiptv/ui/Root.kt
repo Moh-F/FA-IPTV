@@ -57,6 +57,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -190,6 +192,7 @@ fun Main() {
     }
 
     val top = Nav.top
+    val shellState = rememberSaveableStateHolder()
     BackHandler(enabled = top !is com.mohdev.faiptv.ui.Route.Player && (Nav.stack.isNotEmpty() || Nav.tab != Tab.HOME)) {
         if (!Nav.pop()) Nav.tab = Tab.HOME
     }
@@ -197,7 +200,8 @@ fun Main() {
     when {
         top is Route.Player -> PlayerScreen(top.req)
         Prefs.accounts.isEmpty() && top !is Route.AccountEdit -> WelcomeScreen()
-        else -> Shell(top)
+        // keeps category, scroll position etc. while the player is open
+        else -> shellState.SaveableStateProvider("shell") { Shell(top) }
     }
 
     Nav.pinThen?.let { then -> PinDialog(onDismiss = { Nav.pinThen = null }, onOk = { Nav.pinThen = null; then() }) }
@@ -217,7 +221,16 @@ fun Main() {
 
 @Composable
 private fun Shell(top: Route?) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    var hasFocus by remember { mutableStateOf(false) }
+    val railFocus = remember { FocusRequester() }
+    // TV: if nothing is focused after a screen change (e.g. back from the player), focus the menu
+    LaunchedEffect(top, Nav.tab) {
+        if (UiEnv.isTv) {
+            delay(450)
+            if (!hasFocus) runCatching { railFocus.requestFocus() }
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize().onFocusChanged { hasFocus = it.hasFocus }) {
         val wide = UiEnv.isTv || Prefs.s.layout == "tv" || (Prefs.s.layout == "auto" && maxWidth >= 720.dp)
         val content: @Composable () -> Unit = {
             when (top) {
@@ -230,7 +243,7 @@ private fun Shell(top: Route?) {
         }
         if (wide) {
             Row(Modifier.fillMaxSize().then(if (!UiEnv.isTv) Modifier.systemBarsPadding() else Modifier)) {
-                Rail()
+                Rail(railFocus)
                 Box(Modifier.weight(1f).fillMaxHeight()) { content() }
             }
         } else {
@@ -274,9 +287,8 @@ private val railItems = listOf(
 )
 
 @Composable
-private fun Rail() {
-    val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { if (UiEnv.isTv) runCatching { first.requestFocus() } }
+private fun Rail(focus: FocusRequester) {
+    val selIdx = railItems.indexOfFirst { it.tab == Nav.tab }.coerceAtLeast(0)
     Column(
         Modifier.fillMaxHeight().width(96.dp).background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
@@ -292,7 +304,7 @@ private fun Rail() {
                 modifier = Modifier.width(84.dp),
                 selected = sel,
                 color = Color.Transparent,
-                focusRequester = if (i == 0) first else null,
+                focusRequester = if (i == selIdx) focus else null,
             ) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(item.icon, null, tint = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)

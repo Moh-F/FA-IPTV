@@ -323,6 +323,10 @@ fun PlayerScreen(req: PlayRequest) {
         }
     }
 
+    // When the controls disappear the focused button is gone: give focus back to the player surface,
+    // otherwise the remote's keys would no longer reach it.
+    LaunchedEffect(controls) { if (!controls) runCatching { rootFocus.requestFocus() } }
+
     BackHandler {
         if (controls && !UiEnv.inPip) controls = false else Nav.pop()
     }
