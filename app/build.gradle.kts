@@ -114,7 +114,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-datasource-okhttp:$media3")
 
-    implementation("org.videolan.android:libvlc-all:3.7.6")   // LGPL-2.1, dynamically linked
+    implementation("org.videolan.android:libvlc-all:3.6.2")   // LGPL-2.1, dynamically linked
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.7.3")
     implementation("com.google.zxing:core:3.5.3")
