@@ -297,7 +297,7 @@ fun PlayerScreen(req: PlayRequest) {
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        (ctx as? com.mohdev.faiptv.MainActivity)?.setImmersive(true)
+        (ctx as? com.mohdev.faiptv.MainActivity)?.setBarsHidden(true)
         var resumeOnStart = false
         val obs = androidx.lifecycle.LifecycleEventObserver { _, ev ->
             if (ev == androidx.lifecycle.Lifecycle.Event.ON_STOP) { resumeOnStart = player.playWhenReady; player.pause(); saveResume() }
@@ -306,7 +306,7 @@ fun PlayerScreen(req: PlayRequest) {
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(obs)
-            (ctx as? com.mohdev.faiptv.MainActivity)?.setImmersive(false)
+            (ctx as? com.mohdev.faiptv.MainActivity)?.setBarsHidden(false)
         }
     }
 

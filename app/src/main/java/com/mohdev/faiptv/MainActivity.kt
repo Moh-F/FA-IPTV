@@ -32,12 +32,12 @@ class MainActivity : AppCompatActivity() {
             pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) || pm.hasSystemFeature("amazon.hardware.fire_tv")
         UiEnv.pipSupported = Build.VERSION.SDK_INT >= 26 && pm.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        if (UiEnv.isTv) setImmersive(true)
+        if (UiEnv.isTv) setBarsHidden(true)
         setContent { FaRoot() }
     }
 
     /** Hides status/navigation bars (TV always, phones while the player is open). */
-    fun setImmersive(on: Boolean) {
+    fun setBarsHidden(on: Boolean) {
         val c = WindowInsetsControllerCompat(window, window.decorView)
         if (on) {
             c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

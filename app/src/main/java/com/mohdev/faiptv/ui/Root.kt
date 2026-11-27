@@ -285,19 +285,19 @@ private fun Rail() {
     ) {
         Image(painterResource(R.drawable.app_logo_plain), null, Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)))
         Spacer(Modifier.height(10.dp))
-        railItems.forEachIndexed { i, it ->
-            val sel = Nav.tab == it.tab && Nav.stack.isEmpty()
+        railItems.forEachIndexed { i, item ->
+            val sel = Nav.tab == item.tab && Nav.stack.isEmpty()
             FocusCard(
-                onClick = { Nav.go(it.tab) },
+                onClick = { Nav.go(item.tab) },
                 modifier = Modifier.width(84.dp),
                 selected = sel,
                 color = Color.Transparent,
                 focusRequester = if (i == 0) first else null,
             ) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(it.icon, null, tint = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(item.icon, null, tint = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        stringResource(it.label), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        stringResource(item.label), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
