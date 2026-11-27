@@ -38,27 +38,34 @@ jobs:
         run: |
           VER="${GITHUB_REF_NAME#v}"
           gradle assembleRelease -PVERSION_NAME="$VER" -PversionCode="${{ github.run_number }}" --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk "FA-IPTV-v$VER.apk"
+          mkdir -p out
+          for abi in universal arm64-v8a armeabi-v7a; do
+            cp "app/build/outputs/apk/release/app-$abi-release.apk" "out/FA-IPTV-v$VER-$abi.apk"
+          done
+          ls -la out
 
-      - name: Verify the APK is signed
+      - name: Verify the APKs are signed
         run: |
           APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
-          "$APKSIGNER" verify --print-certs "FA-IPTV-v${GITHUB_REF_NAME#v}.apk" | head -5
+          for f in out/*.apk; do "$APKSIGNER" verify --print-certs "$f" | head -2; done
 
       - name: Create latest.json (used by the in-app updater)
         run: |
           VER="${GITHUB_REF_NAME#v}"
-          APK="FA-IPTV-v$VER.apk"
-          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
-          jq -n --arg v "$VER" --argjson b "${{ github.run_number }}" --arg sha "$SHA" \
-            --arg url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/$APK" \
+          BASE="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}"
+          sha() { sha256sum "out/FA-IPTV-v$VER-$1.apk" | cut -d' ' -f1; }
+          jq -n --arg v "$VER" --argjson b "${{ github.run_number }}" \
             --arg ar "$(cat release_notes/ar.md)" --arg en "$(cat release_notes/en.md)" --arg de "$(cat release_notes/de.md)" \
-            '{version:$v,build:$b,minBuild:1,mandatory:false,notes:{ar:$ar,en:$en,de:$de},assets:{android:{url:$url,sha256:$sha}}}' > latest.json
-          cat latest.json
+            --arg u "$BASE/FA-IPTV-v$VER-universal.apk" --arg su "$(sha universal)" \
+            --arg a64 "$BASE/FA-IPTV-v$VER-arm64-v8a.apk" --arg s64 "$(sha arm64-v8a)" \
+            --arg a32 "$BASE/FA-IPTV-v$VER-armeabi-v7a.apk" --arg s32 "$(sha armeabi-v7a)" \
+            '{version:$v,build:$b,minBuild:1,mandatory:false,notes:{ar:$ar,en:$en,de:$de},
+              assets:{android:{url:$u,sha256:$su},"android-arm64-v8a":{url:$a64,sha256:$s64},"android-armeabi-v7a":{url:$a32,sha256:$s32}}}' > out/latest.json
+          cat out/latest.json
 
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "FA-IPTV-v${GITHUB_REF_NAME#v}.apk" latest.json \
+          gh release create "$GITHUB_REF_NAME" out/*.apk out/latest.json \
             --draft --title "$GITHUB_REF_NAME" --notes-file release_notes/en.md

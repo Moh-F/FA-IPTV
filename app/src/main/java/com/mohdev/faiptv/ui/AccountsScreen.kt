@@ -90,9 +90,9 @@ fun WelcomeScreen() {
         ) {
             Image(painterResource(R.drawable.app_logo), null, Modifier.size(120.dp).clip(RoundedCornerShape(28.dp)))
             Spacer(Modifier.height(20.dp))
-            Text(stringResource(R.string.acc_welcome), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.acc_welcome), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.acc_welcome_sub), color = androidx.compose.ui.graphics.Color(0xFFB6BEDF), textAlign = TextAlign.Center)
+            Text(stringResource(R.string.acc_welcome_sub), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             Spacer(Modifier.height(28.dp))
             AddButtons()
             Spacer(Modifier.height(24.dp))
@@ -122,7 +122,8 @@ private fun PhoneInputHint() {
         Text(stringResource(R.string.acc_from_phone), fontWeight = FontWeight.Bold)
         if (Prefs.s.lanServer && LanServer.url.isNotBlank()) {
             Text(stringResource(R.string.acc_from_phone_sub), fontSize = 13.sp, textAlign = TextAlign.Center)
-            Text(LanServer.url, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+            QrCode(LanServer.url, Modifier.padding(top = 10.dp).size(170.dp))
+            Text(LanServer.url, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         } else {
             TextButton(onClick = { Prefs.update { it.copy(lanServer = true) } }) { Text(stringResource(R.string.acc_from_phone_enable)) }
         }
@@ -138,7 +139,11 @@ fun AccountsScreen() {
         item { Text(stringResource(R.string.nav_accounts), fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         items(Prefs.accounts, key = { it.id }) { a ->
             val active = Prefs.active?.id == a.id
-            FocusCard(onClick = { Prefs.update { it.copy(activeAccount = a.id) } }, modifier = Modifier.fillMaxWidth(), selected = active, zoom = 1.01f) {
+            // Plain container: the buttons inside must be reachable with the remote and by touch.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                    .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer),
+            ) {
                 Column(Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (active) { Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp)) }

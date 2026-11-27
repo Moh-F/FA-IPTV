@@ -31,11 +31,12 @@ object Updater {
         "https://github.com/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/latest/download/latest.json"
 
     /** Pure and unit-tested. Returns null if there is nothing newer for [platform]. */
-    fun parse(json: String, currentBuild: Int, platform: String = "android"): UpdateInfo? = runCatching {
+    fun parse(json: String, currentBuild: Int, platform: String = "android", fallback: String = "android"): UpdateInfo? = runCatching {
         val j = JSONObject(json)
         val build = j.getInt("build")
         if (build <= currentBuild) return null
-        val asset = j.getJSONObject("assets").optJSONObject(platform) ?: return null
+        val assets = j.getJSONObject("assets")
+        val asset = assets.optJSONObject(platform) ?: assets.optJSONObject(fallback) ?: return null
         val notes = j.optJSONObject("notes")?.let { n -> n.keys().asSequence().associateWith { n.getString(it) } } ?: emptyMap()
         UpdateInfo(
             j.getString("version"), build, j.optInt("minBuild", 0), j.optBoolean("mandatory", false),
@@ -49,9 +50,15 @@ object Updater {
             c.connectTimeout = 5000; c.readTimeout = 5000
             c.setRequestProperty("User-Agent", "FA-IPTV/${BuildConfig.VERSION_NAME}")
             if (c.responseCode != 200) return@runCatching null
-            val info = parse(c.inputStream.bufferedReader().use { it.readText() }, BuildConfig.VERSION_CODE) ?: return@runCatching null
+            val info = parse(c.inputStream.bufferedReader().use { it.readText() }, BuildConfig.VERSION_CODE, abiPlatform()) ?: return@runCatching null
             if (!ignoreSnooze && !info.forced(BuildConfig.VERSION_CODE) && isSnoozed(ctx, info.build)) null else info
         }.onFailure { AppLog.w("update", "check failed: ${it.message}") }.getOrNull()
+    }
+
+    /** "android-arm64-v8a" / "android-armeabi-v7a": the smaller APK built for this device's CPU. */
+    fun abiPlatform(): String {
+        val abi = Build.SUPPORTED_ABIS.firstOrNull { it == "arm64-v8a" || it == "armeabi-v7a" } ?: return "android"
+        return "android-$abi"
     }
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("updater", Context.MODE_PRIVATE)
@@ -85,7 +92,7 @@ object Updater {
                 }
             }
         }
-        val hex = md.digest().joinToString("") { "%02x".format(it) }
+        val hex = md.digest().joinToString("") { "%02x".format(java.util.Locale.US, it) }
         if (hex != info.sha256) {
             out.delete()
             throw IllegalStateException("checksum mismatch")

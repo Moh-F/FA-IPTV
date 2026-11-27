@@ -10,11 +10,11 @@ import javax.imageio.ImageIO;
  * (diagonal sash at the bottom corner). Pure Java2D, runs headless on CI and on any PC.
  */
 public final class IconGen {
-    static final Color BG1 = new Color(0x070B1F);
-    static final Color BG2 = new Color(0x1A1450);
-    static final Color CYAN = new Color(0x22D3EE);
-    static final Color VIOLET = new Color(0x8B5CF6);
-    static final Color PINK = new Color(0xEC4899);
+    static final Color BG1 = new Color(0x0B1220);
+    static final Color BG2 = new Color(0x163A4F);
+    static final Color CYAN = new Color(0x2DD4BF);
+    static final Color VIOLET = new Color(0x38BDF8);
+    static final Color PINK = new Color(0x818CF8);
 
     private IconGen() {}
 
@@ -70,7 +70,7 @@ public final class IconGen {
         // soft glow
         float gr = Math.max(w, h) * 0.75f;
         g.setPaint(new RadialGradientPaint(w * 0.5f, h * 0.45f, gr,
-            new float[]{0f, 1f}, new Color[]{new Color(139, 92, 246, 90), new Color(139, 92, 246, 0)}));
+            new float[]{0f, 1f}, new Color[]{new Color(45, 212, 191, 70), new Color(45, 212, 191, 0)}));
         g.fillRect(0, 0, w, h);
     }
 

@@ -77,25 +77,28 @@ private data class VodItem(val id: String, val name: String, val image: String, 
 fun MoviesScreen(wide: Boolean) {
     val acc = Prefs.active ?: return
     val lib = Repo.lib ?: run { if (Repo.loading) LoadingBox() else EmptyBox(stringResource(R.string.empty_list)); return }
-    val items = remember(lib) { lib.raw.movies.map { m -> VodItem(m.id, m.name, m.poster, m.categoryId, m.added, m.rating) { Nav.push(Route.MovieDetail(m)) } } }
-    VodBrowser(wide, "movie", lib.raw.movieCats, items, acc.id)
+    val vis = rememberVis(lib, acc.id)
+    val items = remember(vis) { lib.raw.movies.filter(vis::movieOk).map { m -> VodItem(m.id, vis.name("movie:${m.id}", m.name), m.poster, m.categoryId, m.added, m.rating) { Nav.push(Route.MovieDetail(m)) } } }
+    VodBrowser(wide, "movie", vis.movieCats.map { it.copy(name = vis.catName("movie", it)) }, items, acc.id, vis.lockedMovie, vis.kids)
 }
 
 @Composable
 fun SeriesScreen(wide: Boolean) {
     val acc = Prefs.active ?: return
     val lib = Repo.lib ?: run { if (Repo.loading) LoadingBox() else EmptyBox(stringResource(R.string.empty_list)); return }
-    val items = remember(lib) { lib.raw.series.map { s -> VodItem(s.id, s.name, s.cover, s.categoryId, s.added, s.rating) { Nav.push(Route.SeriesDetail(s)) } } }
-    VodBrowser(wide, "series", lib.raw.seriesCats, items, acc.id)
+    val vis = rememberVis(lib, acc.id)
+    val items = remember(vis) { lib.raw.series.filter(vis::seriesOk).map { s -> VodItem(s.id, vis.name("series:${s.id}", s.name), s.cover, s.categoryId, s.added, s.rating) { Nav.push(Route.SeriesDetail(s)) } } }
+    VodBrowser(wide, "series", vis.seriesCats.map { it.copy(name = vis.catName("series", it)) }, items, acc.id, vis.lockedSeries, vis.kids)
 }
 
 @Composable
-private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: List<VodItem>, acc: String) {
+private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: List<VodItem>, acc: String, locked: Set<String>, kids: Boolean) {
     var cat by rememberSaveable(kind) { mutableStateOf(CAT_ALL) }
     var sort by rememberSaveable(kind) { mutableIntStateOf(0) } // 0 default, 1 newest, 2 A-Z
-    val lib = Repo.lib ?: return
-    val locked = remember(lib, Prefs.data.locked, Prefs.unlocked, Prefs.s.autoLockAdult) { lockedCats(lib, acc, kind) }
-    val favs = Prefs.data.favorites[acc].orEmpty()
+    val favs = Prefs.favKeys(acc)
+    var menuFor by remember { mutableStateOf<VodItem?>(null) }
+    var catMenu by remember { mutableStateOf<Category?>(null) }
+    var rename by remember { mutableStateOf<Pair<String, String>?>(null) }
     val allCats = remember(cats) { listOf(Category(CAT_FAV, ""), Category(CAT_ALL, "")) + cats }
     val counts = remember(all) { all.groupingBy { it.cat }.eachCount() }
     val shown = remember(all, cat, sort, locked, favs) {
@@ -120,10 +123,12 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
     fun pick(c: Category) { Nav.guarded(c.id in locked) { cat = c.id } }
     val sortLabels = listOf(R.string.sort_default, R.string.sort_newest, R.string.sort_az)
 
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    val gridFocus = remember { ItemFocus() }
     val grid: @Composable (Modifier) -> Unit = { mod ->
         if (shown.isEmpty()) Box(mod) { EmptyBox(stringResource(R.string.empty_list)) }
         else LazyVerticalGrid(
-            columns = GridCells.Adaptive(if (wide) 140.dp else 108.dp), modifier = mod,
+            columns = GridCells.Adaptive(if (wide) 140.dp else 108.dp), modifier = mod.enterAtFirstVisible(gridState, gridFocus), state = gridState,
             contentPadding = PaddingValues(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -135,8 +140,9 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
             items(shown, key = { it.id }) { v ->
                 PosterCard(
                     v.name, v.image, onClick = v.open, width = 200.dp, modifier = Modifier.fillMaxWidth(),
-                    onLongClick = { Prefs.toggleFav(acc, "$kind:${v.id}") },
-                    badge = if ("$kind:${v.id}" in favs) "♥" else v.rating.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ %.1f".format(it) },
+                    onLongClick = if (kids) null else ({ menuFor = v }),
+                    focusRequester = gridFocus.req(v.id),
+                    badge = if ("$kind:${v.id}" in favs) "♥" else v.rating.toDoubleOrNull()?.takeIf { it > 0 }?.let { "★ %.1f".format(java.util.Locale.US, it) },
                 )
             }
         }
@@ -144,15 +150,18 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
 
     if (wide) {
         Row(Modifier.fillMaxSize()) {
+            val catState = androidx.compose.foundation.lazy.rememberLazyListState()
+            val catFocus = remember { ItemFocus() }
             LazyColumn(
-                Modifier.width(250.dp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer),
-                contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp),
+                Modifier.width(250.dp).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceContainer).enterAtFirstVisible(catState, catFocus),
+                state = catState, contentPadding = PaddingValues(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 items(allCats, key = { it.id }) { c ->
                     FocusCard(
                         onClick = { pick(c) },
-                        onLongClick = if (c.id.startsWith("*")) null else ({ Nav.guarded(true) { Prefs.toggleLock(acc, "$kind:${c.id}") } }),
+                        onLongClick = if (c.id.startsWith("*") || kids) null else ({ catMenu = c }),
                         modifier = Modifier.fillMaxWidth(), selected = cat == c.id, color = Color.Transparent, zoom = 1f,
+                        focusRequester = catFocus.req(c.id),
                     ) {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (c.id in locked || Prefs.isLockedManually(acc, "$kind:${c.id}")) {
@@ -173,6 +182,32 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
             }
             grid(Modifier.weight(1f).fillMaxWidth())
         }
+    }
+
+    menuFor?.let { v ->
+        val key = "$kind:${v.id}"
+        val fav = key in favs
+        ActionMenu(v.name, listOf(
+            stringResource(if (fav) R.string.action_fav_remove else R.string.action_fav_add) to { Prefs.toggleFav(acc, key) },
+            stringResource(R.string.action_rename) to { rename = key to v.name },
+            stringResource(R.string.action_hide) to { Prefs.toggleHidden(acc, key) },
+        )) { menuFor = null }
+    }
+    catMenu?.let { c ->
+        val ck = "${kind}cat:${c.id}"
+        val lk = "$kind:${c.id}"
+        ActionMenu(c.name, listOf(
+            stringResource(R.string.action_rename) to { rename = ck to c.name },
+            stringResource(R.string.action_hide) to { Prefs.toggleHidden(acc, ck) },
+            stringResource(R.string.action_move_up) to { Prefs.move(acc, "cats:$kind", cats.map { it.id }, c.id, -1) },
+            stringResource(R.string.action_move_down) to { Prefs.move(acc, "cats:$kind", cats.map { it.id }, c.id, 1) },
+            stringResource(if (Prefs.isLockedManually(acc, lk)) R.string.action_unlock else R.string.action_lock) to {
+                Nav.guarded(true) { Prefs.toggleLock(acc, lk) }
+            },
+        )) { catMenu = null }
+    }
+    rename?.let { (key, current) ->
+        TextInputDialog(stringResource(R.string.action_rename), current, onDismiss = { rename = null }) { Prefs.rename(acc, key, it) }
     }
 }
 
@@ -224,7 +259,7 @@ fun MovieDetailScreen(m: Movie, wide: Boolean) {
     val acc = Prefs.active ?: return
     var info by remember(m.id) { mutableStateOf<MovieInfo?>(null) }
     LaunchedEffect(m.id) { info = Repo.movieInfo(acc, m) }
-    val resume = Prefs.data.resume["movie:${m.id}"]?.takeIf { !it.finished && it.posMs > 30_000 }
+    val resume = Prefs.pd.resume["movie:${m.id}"]?.takeIf { !it.finished && it.posMs > 30_000 }
     val fav = Prefs.isFav(acc.id, "movie:${m.id}")
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { playFocus.requestFocus() } }
@@ -270,8 +305,8 @@ fun SeriesDetailScreen(s: Series, wide: Boolean) {
     var season by rememberSaveable(s.id) { mutableIntStateOf(-1) }
     val fav = Prefs.isFav(acc.id, "series:${s.id}")
     val flat: List<Episode> = remember(i) { i?.seasons?.values?.flatten().orEmpty() }
-    val lastWatched = remember(flat, Prefs.data.resume) {
-        flat.mapNotNull { e -> Prefs.data.resume["ep:${e.id}"]?.let { e to it } }.maxByOrNull { it.second.updated }
+    val lastWatched = remember(flat, Prefs.pd.resume) {
+        flat.mapNotNull { e -> Prefs.pd.resume["ep:${e.id}"]?.let { e to it } }.maxByOrNull { it.second.updated }
     }
     LaunchedEffect(seasons) {
         if (season == -1 && seasons.isNotEmpty()) season = lastWatched?.first?.season ?: seasons.first()
@@ -294,7 +329,7 @@ fun SeriesDetailScreen(s: Series, wide: Boolean) {
                     Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(6.dp))
                     Text(
                         (if (lastWatched != null) stringResource(R.string.action_continue) else stringResource(R.string.action_play)) +
-                            " S%02dE%02d".format(target.season, target.episode)
+                            " S%02dE%02d".format(java.util.Locale.US, target.season, target.episode)
                     )
                 }
                 IconButton(onClick = { Prefs.toggleFav(acc.id, "series:${s.id}") }) {
@@ -312,7 +347,7 @@ fun SeriesDetailScreen(s: Series, wide: Boolean) {
             items(seasons) { n -> Chip(stringResource(R.string.season_n, n), season == n, { season = n }) }
         }
         i.seasons[season].orEmpty().forEach { e ->
-            val r = Prefs.data.resume["ep:${e.id}"]
+            val r = Prefs.pd.resume["ep:${e.id}"]
             FocusCard(onClick = { play(e) }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), zoom = 1.01f) {
                 Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.width(150.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(8.dp))) {

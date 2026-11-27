@@ -15,6 +15,7 @@ class App : Application(), ImageLoaderFactory {
         AppLog.init(this)
         Prefs.init(this)
         Repo.init(this)
+        com.mohdev.faiptv.core.Sync.init(this)
     }
 
     /** Logos/posters: shared OkHttp client, 200 MB disk cache, ignore "no-cache" headers of IPTV panels. */

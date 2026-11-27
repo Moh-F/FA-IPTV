@@ -26,6 +26,7 @@ sealed interface Route {
     data class Player(val req: PlayRequest) : Route
     data class AccountEdit(val account: Account?, val type: AccountType) : Route
     data class Sub(val tab: Tab) : Route
+    data class KidsAllowed(val profileId: String) : Route
 }
 
 /** App-wide UI state: tab, back stack, dialogs. */
@@ -39,9 +40,13 @@ object Nav {
     var update by mutableStateOf<UpdateInfo?>(null)
     var showLog by mutableStateOf(false)
     var toast by mutableStateOf<String?>(null)
+    /** "Who's watching?" screen visible */
+    var pickProfile by mutableStateOf(false)
 
     /** Channels to zap through with up/down in the player. */
     var liveQueue: List<Live> = emptyList()
+    /** Group (category / favourites list) the queue came from, for the in-player channel list. */
+    var liveGroup: String = "*all"
     /** Episodes after the current one, for "next episode". */
     var episodeQueue: List<Pair<Series, Episode>> = emptyList()
 

@@ -41,6 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -64,6 +67,8 @@ import com.mohdev.faiptv.R
 import com.mohdev.faiptv.core.Prefs
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
+import com.mohdev.faiptv.core.Locales
 
 /** Device facts set by MainActivity. */
 object UiEnv {
@@ -104,7 +109,13 @@ fun FocusCard(
                 }
             }
             .onPreviewKeyEvent { e ->
-                if (onLongClick != null && e.key == Key.Menu && e.type == KeyEventType.KeyUp) { onLongClick(); true } else false
+                when {
+                    onLongClick != null && e.key == Key.Menu && e.type == KeyEventType.KeyUp -> { onLongClick(); true }
+                    // game pads / some remotes: A = OK, Y = menu
+                    e.key == Key.ButtonA && e.type == KeyEventType.KeyUp -> { onClick(); true }
+                    onLongClick != null && e.key == Key.ButtonY && e.type == KeyEventType.KeyUp -> { onLongClick(); true }
+                    else -> false
+                }
             }
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) { content(focused) }
@@ -174,22 +185,21 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
     }
 }
 
-fun fmtTime(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(ms))
-fun fmtDay(ms: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(ms))
-fun fmtDayShort(ms: Long): String =
-    android.text.format.DateFormat.format("EEE d.M", ms).toString()
+fun fmtTime(ms: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT, Locales.num()).format(Date(ms))
+fun fmtDay(ms: Long): String = DateFormat.getDateInstance(DateFormat.MEDIUM, Locales.num()).format(Date(ms))
+fun fmtDayShort(ms: Long): String = java.text.SimpleDateFormat("EEE d.M", Locales.num()).format(Date(ms))
 
 fun fmtDur(ms: Long): String {
     val s = (ms / 1000).coerceAtLeast(0)
     val h = s / 3600
     val m = (s % 3600) / 60
     val sec = s % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%02d:%02d".format(m, sec)
+    return if (h > 0) "%d:%02d:%02d".format(Locale.US, h, m, sec) else "%02d:%02d".format(Locale.US, m, sec)
 }
 
 fun fmtSize(bytes: Long): String = when {
-    bytes > 1L shl 30 -> "%.2f GB".format(bytes / (1L shl 30).toDouble())
-    bytes > 1L shl 20 -> "%.1f MB".format(bytes / (1L shl 20).toDouble())
+    bytes > 1L shl 30 -> "%.2f GB".format(Locale.US, bytes / (1L shl 30).toDouble())
+    bytes > 1L shl 20 -> "%.1f MB".format(Locale.US, bytes / (1L shl 20).toDouble())
     else -> "${bytes / 1024} KB"
 }
 
@@ -259,4 +269,89 @@ fun ConfirmDialog(text: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
         confirmButton = { TextButton(onClick = { onConfirm(); onDismiss() }) { Text(stringResource(R.string.action_ok)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
+}
+
+
+/** Per-item focus requesters for lazy lists, so focus can enter a list at the first fully visible item. */
+class ItemFocus {
+    private val map = HashMap<Any, FocusRequester>()
+    fun req(key: Any): FocusRequester = map.getOrPut(key) { FocusRequester() }
+    fun has(key: Any) = map.containsKey(key)
+}
+
+/** When the remote moves focus into this list from outside, land on the first fully visible item (not the one opposite). */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+fun Modifier.enterAtFirstVisible(state: androidx.compose.foundation.lazy.LazyListState, items: ItemFocus): Modifier =
+    this.focusProperties {
+        enter = {
+            val info = state.layoutInfo.visibleItemsInfo
+            val k = (info.firstOrNull { it.offset >= state.layoutInfo.viewportStartOffset } ?: info.firstOrNull())?.key
+            if (k != null && items.has(k)) items.req(k) else FocusRequester.Default
+        }
+    }.focusGroup()
+
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+fun Modifier.enterAtFirstVisible(state: androidx.compose.foundation.lazy.grid.LazyGridState, items: ItemFocus): Modifier =
+    this.focusProperties {
+        enter = {
+            val info = state.layoutInfo.visibleItemsInfo
+            val k = (info.firstOrNull { it.offset.y >= state.layoutInfo.viewportStartOffset } ?: info.firstOrNull())?.key
+            if (k != null && items.has(k)) items.req(k) else FocusRequester.Default
+        }
+    }.focusGroup()
+
+/** Simple action list dialog (long-press menus). */
+@Composable
+fun ActionMenu(title: String, actions: List<Pair<String, () -> Unit>>, onDismiss: () -> Unit) {
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(actions.size) { i ->
+                    val (label, action) = actions[i]
+                    FocusCard(
+                        onClick = { onDismiss(); action() }, modifier = Modifier.fillMaxWidth(), zoom = 1f,
+                        focusRequester = if (i == 0) first else null,
+                    ) { Text(label, Modifier.padding(14.dp)) }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) } },
+    )
+}
+
+@Composable
+fun TextInputDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var t by remember { mutableStateOf(initial) }
+    val fr = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { OutlinedTextField(t, { t = it }, Modifier.fillMaxWidth().focusRequester(fr), singleLine = true) },
+        confirmButton = { TextButton(onClick = { onSave(t); onDismiss() }) { Text(stringResource(R.string.action_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}
+
+/** QR code (for opening the phone page). */
+@Composable
+fun QrCode(text: String, modifier: Modifier = Modifier) {
+    val bmp = remember(text) {
+        runCatching {
+            val m = com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, 0, 0, mapOf(com.google.zxing.EncodeHintType.MARGIN to 1))
+            val w = m.width
+            val px = IntArray(w * w) { i -> if (m.get(i % w, i / w)) 0xFF000000.toInt() else 0xFFFFFFFF.toInt() }
+            android.graphics.Bitmap.createBitmap(px, w, w, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap()
+        }.getOrNull()
+    }
+    if (bmp != null) {
+        androidx.compose.foundation.Image(
+            bmp, null, modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).padding(6.dp),
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
+        )
+    }
 }
