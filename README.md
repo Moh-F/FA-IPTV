@@ -66,6 +66,12 @@ git push origin v1.0.0
 بعد 5–8 دقائق: GitHub ← Releases ← مسودة `v1.0.0` ← **Publish release**.
 لكل إصدار لاحق: غيّر `VERSION_NAME` في `gradle.properties` واكتب ملاحظات `release_notes/*.md` ثم tag جديد.
 
+### 3ب) إصدار جديد من الجوال (بدون git)
+1. افتح المستودع في كروم ← **Actions** ← **Release** ← **Run workflow**.
+2. اكتب رقم الإصدار (مثلاً `1.2.0`) أو اتركه فارغاً ليؤخذ من `gradle.properties`، واترك «Publish immediately» مفعّلاً.
+3. **Run workflow** ← بعد 8 دقائق تقريباً يكون الإصدار منشوراً ويصل التحديث للأجهزة.
+تعديل رقم الإصدار أو الملاحظات من الجوال: افتح الملف في المستودع ← أيقونة القلم ← Commit ← Pull request ← Merge.
+
 ### 4) التثبيت على Fire TV
 ```powershell
 adb connect <IP-الجهاز>:5555
