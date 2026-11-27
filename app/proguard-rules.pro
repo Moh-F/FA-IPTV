@@ -9,3 +9,9 @@
 }
 -keep,includedescriptorclasses class com.mohdev.faiptv.**$$serializer { *; }
 -dontwarn org.slf4j.**
+# libVLC: native code calls back into these classes by name
+-keep class org.videolan.libvlc.** { *; }
+-keep class org.videolan.medialibrary.** { *; }
+-dontwarn org.videolan.**
+# zxing (QR codes)
+-dontwarn com.google.zxing.**

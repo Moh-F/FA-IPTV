@@ -77,6 +77,7 @@ import com.mohdev.faiptv.BuildConfig
 import com.mohdev.faiptv.R
 import com.mohdev.faiptv.core.AppLog
 import com.mohdev.faiptv.core.LanServer
+import com.mohdev.faiptv.core.Sync
 import com.mohdev.faiptv.core.Prefs
 import com.mohdev.faiptv.core.UpdateInfo
 import com.mohdev.faiptv.core.Updater
@@ -147,21 +148,21 @@ fun Splash(onDone: () -> Unit) {
         Column(Modifier.width(340.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Image(painterResource(R.drawable.app_logo), null, Modifier.size(150.dp).clip(RoundedCornerShape(34.dp)))
             Spacer(Modifier.height(18.dp))
-            Text("FA IPTV", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("FA IPTV", color = MaterialTheme.colorScheme.onBackground, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(26.dp))
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                color = Brand.Cyan, trackColor = Color(0x26FFFFFF),
+                color = Brand.Cyan, trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
             Spacer(Modifier.height(10.dp))
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                Text("${(progress * 100).toInt()}%", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                Text("${(progress * 100).toInt()}%", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.Medium)
             }
-            if (label != 0) Text(stringResource(label), color = Color(0xFF94A3B8), fontSize = 13.sp, maxLines = 1)
+            if (label != 0) Text(stringResource(label), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, maxLines = 1)
         }
         Text(
-            "v${BuildConfig.VERSION_NAME}", color = Color(0x88FFFFFF), fontSize = 12.sp,
+            "v${BuildConfig.VERSION_NAME}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
         )
     }
@@ -170,8 +171,16 @@ fun Splash(onDone: () -> Unit) {
 @Composable
 fun Main() {
     val ctx = LocalContext.current
-    val lan = Prefs.s.lanServer
-    LaunchedEffect(lan) { if (lan) LanServer.start(ctx) else if (LanServer.running) LanServer.stop() }
+    val syncLan = Sync.enabled && Prefs.s.syncLan
+    val lan = Prefs.s.lanServer || syncLan
+    LaunchedEffect(lan, syncLan) {
+        if (lan) LanServer.start(ctx) else if (LanServer.running) LanServer.stop()
+        if (syncLan) Sync.startLan() else Sync.stopLan()
+    }
+    LaunchedEffect(Unit) {
+        if (Prefs.profiles.size > 1 && Prefs.s.askProfile) Nav.pickProfile = true
+        Sync.start()
+    }
 
     // switch library when the active account changes
     val activeId = Prefs.active?.id
@@ -199,6 +208,10 @@ fun Main() {
 
     when {
         top is Route.Player -> PlayerScreen(top.req)
+        Nav.pickProfile -> {
+            BackHandler { Nav.pickProfile = false }
+            ProfilePicker { Nav.pickProfile = false; Nav.go(Tab.HOME) }
+        }
         Prefs.accounts.isEmpty() && top !is Route.AccountEdit -> WelcomeScreen()
         // keeps category, scroll position etc. while the player is open
         else -> shellState.SaveableStateProvider("shell") { Shell(top) }
@@ -237,6 +250,7 @@ private fun Shell(top: Route?) {
                 is Route.MovieDetail -> MovieDetailScreen(top.movie, wide)
                 is Route.SeriesDetail -> SeriesDetailScreen(top.series, wide)
                 is Route.AccountEdit -> AccountEditScreen(top.account, top.type)
+                is Route.KidsAllowed -> KidsAllowedScreen(top.profileId)
                 is Route.Sub -> TabContent(top.tab, wide)
                 else -> TabContent(Nav.tab, wide)
             }
@@ -295,12 +309,15 @@ private fun Rail(focus: FocusRequester) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Image(painterResource(R.drawable.app_logo_plain), null, Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)))
-        Spacer(Modifier.height(10.dp))
+        FocusCard(onClick = { Nav.pickProfile = true }, shape = androidx.compose.foundation.shape.CircleShape, color = Color.Transparent) {
+            Avatar(Prefs.profile, 44.dp)
+        }
+        Text(profileName(Prefs.profile), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
         railItems.forEachIndexed { i, item ->
             val sel = Nav.tab == item.tab && Nav.stack.isEmpty()
             FocusCard(
-                onClick = { Nav.go(item.tab) },
+                onClick = { openTab(item.tab) },
                 modifier = Modifier.width(84.dp),
                 selected = sel,
                 color = Color.Transparent,
@@ -323,6 +340,12 @@ private fun Rail(focus: FocusRequester) {
             )
         }
     }
+}
+
+/** Kids profile: settings and accounts need the parental PIN (if one is set). */
+fun openTab(t: Tab, push: Boolean = false) {
+    val go = { if (push) Nav.push(Route.Sub(t)) else Nav.go(t) }
+    if (Prefs.isKids && Prefs.hasPin() && t in setOf(Tab.SETTINGS, Tab.ACCOUNTS, Tab.RECORDINGS)) Nav.guarded(true, go) else go()
 }
 
 @Composable
@@ -357,16 +380,18 @@ fun MoreScreen() {
     LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
             Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Image(painterResource(R.drawable.app_logo), null, Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)))
+                FocusCard(onClick = { Nav.pickProfile = true }, shape = androidx.compose.foundation.shape.CircleShape, color = Color.Transparent) {
+                    Avatar(Prefs.profile, 56.dp)
+                }
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("FA IPTV", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(profileName(Prefs.profile), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     Prefs.active?.let { Text(it.name, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }
         items(entries) { e ->
-            FocusCard(onClick = { Nav.push(Route.Sub(e.tab)) }, Modifier.fillMaxWidth()) {
+            FocusCard(onClick = { openTab(e.tab, push = true) }, Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(e.icon, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))

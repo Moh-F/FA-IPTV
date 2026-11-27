@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.mohdev.faiptv.core.Locales.fixDigits()
         val pm = packageManager
         val ui = getSystemService(UiModeManager::class.java)
         UiEnv.isTv = ui?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||

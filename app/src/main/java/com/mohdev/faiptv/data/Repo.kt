@@ -15,8 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
-import kotlinx.serialization.json.encodeToStream
 import java.io.File
 import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
@@ -34,6 +32,14 @@ class Lib(val raw: Library) {
     val seriesCatName: Map<String, String> = raw.seriesCats.associate { it.id to it.name }
     val recentMovies: List<Movie> by lazy { raw.movies.sortedByDescending { it.added }.take(40) }
     val recentSeries: List<Series> by lazy { raw.series.sortedByDescending { it.added }.take(40) }
+    /** Normalised names for fast search ("l<id>", "m<id>", "s<id>"). Built once in the background. */
+    val normName: Map<String, String> by lazy {
+        HashMap<String, String>(raw.live.size + raw.movies.size + raw.series.size).apply {
+            raw.live.forEach { put("l" + it.id, Repo.norm(it.name)) }
+            raw.movies.forEach { put("m" + it.id, Repo.norm(it.name)) }
+            raw.series.forEach { put("s" + it.id, Repo.norm(it.name)) }
+        }
+    }
 }
 
 object Repo {
@@ -56,7 +62,10 @@ object Repo {
 
     fun init(ctx: Context) { app = ctx.applicationContext }
 
-    private fun cacheFile(id: String) = File(app.filesDir, "cache/$id.json")
+    /** Binary (protobuf) cache: several times faster to load than JSON on TV sticks. */
+    private fun cacheFile(id: String) = File(app.filesDir, "cache/$id.pb")
+    @OptIn(ExperimentalSerializationApi::class)
+    private val proto = kotlinx.serialization.protobuf.ProtoBuf
     fun playlistDir() = File(app.filesDir, "playlists").apply { mkdirs() }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -64,8 +73,9 @@ object Repo {
         val f = cacheFile(a.id)
         if (!f.exists()) return@withContext false
         runCatching {
-            val l = f.inputStream().buffered().use { json.decodeFromStream(Library.serializer(), it) }
+            val l = proto.decodeFromByteArray(Library.serializer(), f.readBytes())
             lib = Lib(l)
+            scope.launch { lib?.normName?.size }
             true
         }.onFailure { AppLog.e("repo", "cache unreadable", it); f.delete() }.getOrDefault(false)
     }
@@ -95,11 +105,13 @@ object Repo {
                 AccountType.M3U -> loadM3u(a)
             }
             lib = Lib(l)
+            scope.launch { lib?.normName?.size }
             epgCache.clear()
             runCatching {
                 cacheFile(a.id).parentFile?.mkdirs()
                 val tmp = File(cacheFile(a.id).path + ".tmp")
-                tmp.outputStream().buffered().use { json.encodeToStream(Library.serializer(), l, it) }
+                tmp.writeBytes(proto.encodeToByteArray(Library.serializer(), l))
+                File(app.filesDir, "cache/${a.id}.json").delete()
                 tmp.renameTo(cacheFile(a.id))
             }.onFailure { AppLog.w("repo", "cache write failed: ${it.message}") }
             AppLog.i("repo", "library ${a.type}: ${l.live.size} live, ${l.movies.size} movies, ${l.series.size} series")
@@ -219,15 +231,15 @@ object Repo {
     fun playMovie(a: Account, m: Movie, ext: String = "") = PlayRequest(
         url = if (a.type == AccountType.XTREAM) Xtream.movieUrl(a, if (ext.isNotBlank()) m.copy(ext = ext) else m) else m.url,
         title = m.name, kind = Kind.MOVIE, key = "movie:${m.id}", poster = m.poster, userAgent = a.userAgent,
-        startAtMs = Prefs.data.resume["movie:${m.id}"]?.takeIf { !it.finished }?.posMs ?: 0,
+        startAtMs = Prefs.pd.resume["movie:${m.id}"]?.takeIf { !it.finished }?.posMs ?: 0,
     )
 
     fun playEpisode(a: Account, s: Series, e: Episode) = PlayRequest(
         url = if (a.type == AccountType.XTREAM) Xtream.episodeUrl(a, e) else e.url,
-        title = s.name, subtitle = "S%02d E%02d %s".format(e.season, e.episode, e.title.takeIf { it != s.name } ?: ""),
+        title = s.name, subtitle = "S%02d E%02d %s".format(java.util.Locale.US, e.season, e.episode, e.title.takeIf { it != s.name } ?: ""),
         kind = Kind.SERIES, key = "ep:${e.id}", poster = s.cover.ifBlank { e.image }, userAgent = a.userAgent,
         seriesId = s.id, episodeId = e.id,
-        startAtMs = Prefs.data.resume["ep:${e.id}"]?.takeIf { !it.finished }?.posMs ?: 0,
+        startAtMs = Prefs.pd.resume["ep:${e.id}"]?.takeIf { !it.finished }?.posMs ?: 0,
     )
 
     // ---- search

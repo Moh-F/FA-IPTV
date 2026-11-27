@@ -32,7 +32,9 @@ class UpdaterRedactTest {
     }
 
     @Test fun otherPlatformMissingAndGarbageAreNull() {
-        assertNull(Updater.parse(manifest, 1, "windows"))
+        assertNull(Updater.parse(manifest, 1, "windows", fallback = "windows"))
+        // a device-specific APK that is not in the manifest falls back to the universal one
+        assertEquals(Updater.parse(manifest, 1)?.url, Updater.parse(manifest, 1, "android-arm64-v8a")?.url)
         assertNull(Updater.parse("not json", 1))
     }
 

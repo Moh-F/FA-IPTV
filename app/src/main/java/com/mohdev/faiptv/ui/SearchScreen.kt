@@ -49,18 +49,16 @@ fun SearchScreen(wide: Boolean) {
     var res by remember { mutableStateOf(Results()) }
     val fr = remember { FocusRequester() }
     LaunchedEffect(Unit) { if (!UiEnv.isTv) runCatching { fr.requestFocus() } }
-    LaunchedEffect(q, lib, Prefs.unlocked) {
+    val vis = rememberVis(lib, acc.id)
+    LaunchedEffect(q, vis) {
         delay(300)
         val n = Repo.norm(q.trim())
         if (n.length < 2) { res = Results(); return@LaunchedEffect }
         res = withContext(Dispatchers.Default) {
-            val ll = lockedCats(lib, acc.id, "live")
-            val lm = lockedCats(lib, acc.id, "movie")
-            val ls = lockedCats(lib, acc.id, "series")
             Results(
-                lib.raw.live.asSequence().filter { it.categoryId !in ll && Repo.norm(it.name).contains(n) }.take(60).toList(),
-                lib.raw.movies.asSequence().filter { it.categoryId !in lm && Repo.norm(it.name).contains(n) }.take(60).toList(),
-                lib.raw.series.asSequence().filter { it.categoryId !in ls && Repo.norm(it.name).contains(n) }.take(60).toList(),
+                vis.allLive.asSequence().filter { (lib.normName["l" + it.id] ?: "").contains(n) || vis.name("live:${it.id}", "").let { x -> x.isNotBlank() && Repo.norm(x).contains(n) } }.take(60).toList(),
+                vis.allMovies.asSequence().filter { (lib.normName["m" + it.id] ?: "").contains(n) }.take(60).toList(),
+                vis.allSeries.asSequence().filter { (lib.normName["s" + it.id] ?: "").contains(n) }.take(60).toList(),
             )
         }
     }

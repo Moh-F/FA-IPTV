@@ -54,9 +54,10 @@ import kotlinx.coroutines.launch
 fun PosterCard(
     title: String, image: String, onClick: () -> Unit, modifier: Modifier = Modifier,
     width: Dp = 120.dp, progress: Float? = null, onLongClick: (() -> Unit)? = null, badge: String? = null,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
 ) {
     Column(modifier.width(width)) {
-        FocusCard(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f), zoom = 1.06f) {
+        FocusCard(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f), zoom = 1.06f, focusRequester = focusRequester) {
             NetImage(image, Modifier.fillMaxSize(), fallback = title)
             badge?.let {
                 Text(
@@ -83,7 +84,7 @@ fun PosterCard(
 fun ChannelTile(ch: Live, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null) {
     Column(modifier.width(150.dp)) {
         FocusCard(onClick = onClick, onLongClick = onLongClick, modifier = Modifier.fillMaxWidth().aspectRatio(16f / 10f), zoom = 1.06f) {
-            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF1A2147), Color(0xFF0E1430)))))
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.surfaceContainer))))
             NetImage(ch.logo, Modifier.fillMaxSize().padding(14.dp), ContentScale.Fit, fallback = ch.name)
         }
         Text(ch.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
@@ -121,14 +122,16 @@ fun HomeScreen(wide: Boolean) {
             }
         }
         if (Repo.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        val vis = lib?.let { rememberVis(it, acc.id) }
         when {
             lib == null && Repo.loading -> LoadingBox()
             lib == null -> EmptyBox(
                 Repo.error?.let { stringResource(R.string.error_load, it) } ?: stringResource(R.string.empty_list),
                 action = { Button(onClick = { appScope.launch { Repo.refresh(acc) } }) { Text(stringResource(R.string.retry)) } },
             )
+            vis == null -> Unit
             else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-                val resume = Prefs.data.resume.values.filter { it.accountId == acc.id && !it.finished && it.posMs > 30_000 && (it.key.startsWith("movie:") || it.key.startsWith("ep:")) }
+                val resume = Prefs.pd.resume.values.filter { it.accountId == acc.id && !it.finished && it.posMs > 30_000 && (it.key.startsWith("movie:") || it.key.startsWith("ep:")) }
                     .sortedByDescending { it.updated }.take(20)
                 item {
                     Shelf(stringResource(R.string.home_continue), resume) { r ->
@@ -138,14 +141,14 @@ fun HomeScreen(wide: Boolean) {
                         }, progress = r.fraction)
                     }
                 }
-                val favs = Prefs.data.favorites[acc.id].orEmpty()
+                val favs = Prefs.favKeys(acc.id)
                 item {
-                    Shelf(stringResource(R.string.home_fav_channels), favs.filter { it.startsWith("live:") }.mapNotNull { lib.liveById[it.removePrefix("live:")] }) { ch ->
-                        ChannelTile(ch, onClick = { Nav.liveQueue = favs.mapNotNull { k -> lib.liveById[k.removePrefix("live:")] }; Nav.play(ctx, Repo.playLive(acc, ch)) })
+                    Shelf(stringResource(R.string.home_fav_channels), favs.filter { it.startsWith("live:") }.mapNotNull { lib.liveById[it.removePrefix("live:")] }.filter(vis::liveOk)) { ch ->
+                        ChannelTile(ch, onClick = { Nav.liveQueue = favs.filter { it.startsWith("live:") }.mapNotNull { k -> lib.liveById[k.removePrefix("live:")] }; Nav.play(ctx, Repo.playLive(acc, ch)) })
                     }
                 }
                 item {
-                    val recent = Prefs.data.recentLive[acc.id].orEmpty().mapNotNull { lib.liveById[it] }
+                    val recent = Prefs.pd.recentLive[acc.id].orEmpty().mapNotNull { lib.liveById[it] }.filter(vis::liveOk)
                     Shelf(stringResource(R.string.home_recent_channels), recent) { ch ->
                         ChannelTile(ch, onClick = { Nav.liveQueue = recent; Nav.play(ctx, Repo.playLive(acc, ch)) })
                     }
@@ -161,12 +164,12 @@ fun HomeScreen(wide: Boolean) {
                     Shelf(stringResource(R.string.home_fav_vod), vodFav) { (t, img, go) -> PosterCard(t, img, onClick = go) }
                 }
                 item {
-                    Shelf(stringResource(R.string.home_new_movies), lockedCats(lib, acc.id, "movie").let { l -> lib.recentMovies.filter { it.categoryId !in l } }) { m ->
+                    Shelf(stringResource(R.string.home_new_movies), lib.recentMovies.filter { it.categoryId !in vis.lockedMovie && vis.movieOk(it) }) { m ->
                         PosterCard(m.name, m.poster, onClick = { Nav.push(Route.MovieDetail(m)) })
                     }
                 }
                 item {
-                    Shelf(stringResource(R.string.home_new_series), lockedCats(lib, acc.id, "series").let { l -> lib.recentSeries.filter { it.categoryId !in l } }) { s ->
+                    Shelf(stringResource(R.string.home_new_series), lib.recentSeries.filter { it.categoryId !in vis.lockedSeries && vis.seriesOk(it) }) { s ->
                         PosterCard(s.name, s.cover, onClick = { Nav.push(Route.SeriesDetail(s)) })
                     }
                 }

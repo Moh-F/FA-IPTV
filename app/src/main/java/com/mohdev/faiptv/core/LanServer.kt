@@ -41,6 +41,7 @@ object LanServer {
         private set
 
     val running get() = server != null
+    val port get() = server?.localPort ?: 0
 
     fun start(ctx: Context) {
         if (server != null) return
@@ -119,11 +120,18 @@ object LanServer {
         val query = target.substringAfter('?', "").split("&").filter { it.contains("=") }
             .associate { it.substringBefore('=') to java.net.URLDecoder.decode(it.substringAfter('='), "UTF-8") }
         val len = headers["content-length"]?.toIntOrNull() ?: 0
-        if (len > 65_536) { send(out, 413, "text/plain", "Too large".toByteArray()); return }
+        if (len > (if (path == "/api/sync") 8_000_000 else 65_536)) { send(out, 413, "text/plain", "Too large".toByteArray()); return }
         val body = ByteArray(len)
         var read = 0
         while (read < len) { val n = input.read(body, read, len - read); if (n < 0) break; read += n }
 
+        // device-to-device sync: authorised by the shared, encrypted pass phrase instead of the page token
+        if (method == "POST" && path == "/api/sync") {
+            val reply = Sync.handleIncoming(headers["x-sync-key"], body)
+            if (reply == null) send(out, 403, "text/plain", "Forbidden".toByteArray())
+            else send(out, 200, "application/octet-stream", reply)
+            return
+        }
         if (!tokenOk(query["token"] ?: headers["x-token"])) {
             send(out, 403, "text/plain", "Forbidden".toByteArray()); return
         }

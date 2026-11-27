@@ -14,8 +14,8 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.10.2' }
-      - name: Unit tests, lint, debug build
-        run: gradle testDebugUnitTest lintDebug assembleDebug --stacktrace
+      - name: Unit tests, lint, debug + release (R8) build
+        run: gradle testDebugUnitTest lintDebug assembleDebug assembleRelease --stacktrace
       - uses: actions/upload-artifact@v4
         if: always()
         with:

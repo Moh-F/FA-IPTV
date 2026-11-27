@@ -23,6 +23,8 @@ data class Account(
     val maxConnections: Int = 0,
     val status: String = "",
     val timezone: String = "",
+    /** last change (sync) */
+    val updated: Long = 0,
 )
 
 enum class Kind { LIVE, MOVIE, SERIES }

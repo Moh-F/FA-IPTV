@@ -58,6 +58,16 @@ android {
         }
     }
 
+    // One APK per CPU family (VLC engine is native code). The updater picks the right one.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a")
+            isUniversalApk = true
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -74,6 +84,7 @@ android {
     }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/previous-compilation-data.bin")
+        jniLibs.useLegacyPackaging = true
     }
 }
 
@@ -103,6 +114,10 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-datasource-okhttp:$media3")
 
+    implementation("org.videolan.android:libvlc-all:3.6.2")   // LGPL-2.1, dynamically linked
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.7.3")
+    implementation("com.google.zxing:core:3.5.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
 

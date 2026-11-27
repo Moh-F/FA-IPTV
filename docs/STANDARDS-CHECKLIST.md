@@ -15,4 +15,5 @@
 | Privacy / GDPR | No data collected; `PRIVACY.md` |
 | Tests + CI | Unit tests (M3U parser, catch-up URLs, Xtream JSON, updater, redaction); CI on every push, signed release on tags |
 | TV focus / D-pad + touch | Focus ring + zoom on every card, Menu key = long press, player fully remote-controlled |
-| Not yet | Golden/UI tests, bundled fonts, EPG timeline grid, cloud sync |
+| Sync | Home network + private GitHub repo, end-to-end encrypted |
+| Not yet | Golden/UI tests, bundled fonts, EPG timeline grid, Baseline Profile generated on a device |
