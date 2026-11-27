@@ -44,6 +44,8 @@ object Sync {
     private var discListener: NsdManager.DiscoveryListener? = null
     private var debounce: Job? = null
     private var myServiceName = ""
+    private var started = false
+    private var lastGitHub = 0L
 
     val peers = mutableStateListOf<Peer>()
     var status by mutableStateOf("")
@@ -87,7 +89,8 @@ object Sync {
     }
 
     fun start() {
-        if (!enabled) return
+        if (!enabled || started) return
+        started = true
         if (Prefs.s.syncLan) startLan()
         scope.launch {
             delay(3000)
@@ -96,7 +99,7 @@ object Sync {
         }
     }
 
-    suspend fun syncNow(): Boolean = mutex.withLock {
+    suspend fun syncNow(manual: Boolean = false): Boolean = mutex.withLock {
         if (!enabled) return false
         running = true
         var ok = false
@@ -108,7 +111,10 @@ object Sync {
                         .onFailure { AppLog.w("sync", "peer ${p.name}: ${it.message}") }
                 }
             }
-            if (Prefs.s.ghRepo.isNotBlank() && Prefs.s.ghToken.isNotBlank()) {
+            // GitHub: at most every 10 minutes (each change is a commit), always when asked
+            val ghDue = manual || System.currentTimeMillis() - lastGitHub > 10 * 60_000L
+            if (ghDue && Prefs.s.ghRepo.isNotBlank() && Prefs.s.ghToken.isNotBlank()) {
+                lastGitHub = System.currentTimeMillis()
                 runCatching { syncGitHub(pass) }.onSuccess { ok = true }
                     .onFailure { AppLog.w("sync", "github: ${it.message}"); status = "GitHub: ${it.message}" }
             }
@@ -156,6 +162,7 @@ object Sync {
         }
         val merged = remote?.let { SyncMerge.merge(localDoc(), it) } ?: localDoc()
         apply(merged)
+        if (remote != null && same(remote!!, merged)) { AppLog.i("sync", "GitHub already up to date"); return }
         val body = JSONObject()
             .put("message", "FA IPTV sync ${Build.MODEL}")
             .put("content", Base64.encodeToString(SyncCrypto.seal(merged, pass), Base64.NO_WRAP))
@@ -165,6 +172,8 @@ object Sync {
         }
         AppLog.i("sync", "synced with GitHub")
     }
+
+    private fun same(a: SyncDoc, b: SyncDoc) = a.copy(at = 0) == b.copy(at = 0)
 
     // ------------------------------------------------------------------ home network discovery
     fun startLan() {

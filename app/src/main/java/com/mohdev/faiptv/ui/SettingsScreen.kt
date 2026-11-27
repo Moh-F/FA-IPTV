@@ -216,7 +216,7 @@ fun SettingsScreen() {
             item { Row_(stringResource(R.string.sync_gh_token), if (s.ghToken.isBlank()) "—" else "••••" + s.ghToken.takeLast(4)) { textEdit = Triple(ctx.getString(R.string.sync_gh_token), s.ghToken) { t -> set { it.copy(ghToken = t.trim()) } } } }
             item {
                 val last = if (Sync.lastSync > 0) fmtDay(Sync.lastSync) + " " + fmtTime(Sync.lastSync) else "—"
-                Row_(stringResource(R.string.sync_now), if (Sync.running) "…" else Sync.status.ifBlank { last }) { scope.launch { Sync.syncNow() } }
+                Row_(stringResource(R.string.sync_now), if (Sync.running) "…" else Sync.status.ifBlank { last }) { scope.launch { Sync.syncNow(manual = true) } }
             }
         }
 
