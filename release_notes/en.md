@@ -1,1 +1,7 @@
-- First release of FA IPTV
+- Profiles like YouTube, each with its own favourites, order and history; kids profile limited to what parents allow
+- Several named favourites lists; move, sort, rename and hide channels and categories
+- Encrypted sync between devices over the home network and GitHub
+- Pro player: zap with the arrows even while buttons are visible, transparent channel list over the picture, info bar (real resolution, speed, data used), channel number entry
+- Optional VLC engine (de-interlacing, every format) with automatic fallback; YouTube-like quality selection
+- New calm colours (3 styles), Western digits in Arabic
+- Add accounts from the phone via QR code, fixed account buttons, faster lists and channel start

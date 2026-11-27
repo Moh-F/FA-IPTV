@@ -1,1 +1,7 @@
-- Erste Version von FA IPTV
+- Profile wie bei YouTube mit eigenen Favoriten, Reihenfolge und Verlauf; Kinderprofil sieht nur, was die Eltern erlauben
+- Mehrere benannte Favoritenlisten; Sender und Kategorien verschieben, sortieren, umbenennen, ausblenden
+- Verschlüsselte Synchronisation zwischen Geräten über Heimnetz und GitHub
+- Profi-Player: Umschalten mit den Pfeilen auch bei sichtbaren Tasten, transparente Senderliste über dem Bild, Infoleiste (echte Auflösung, Tempo, Datenverbrauch), Sendernummer-Eingabe
+- Optionale VLC-Engine (Deinterlacing, alle Formate) mit automatischem Wechsel; Qualitätswahl wie bei YouTube
+- Neue ruhige Farben (3 Stile), westliche Ziffern im Arabischen
+- Konto per QR-Code vom Handy hinzufügen, Konto-Tasten repariert, schnellere Listen und Senderstart
