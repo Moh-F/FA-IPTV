@@ -1,1 +1,2 @@
-- Security: removed the unneeded full-screen notification permission
+- Fixed GitHub sync
+- "Test connection" in the account form: shows which DNS knows the server and whether it answers

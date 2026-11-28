@@ -283,5 +283,6 @@
     <string name="rem_invalid">اختر قناة وتاريخاً/وقتاً في المستقبل</string>
     <string name="rem_starts">يبدأ %1$s الساعة %2$s</string>
     <string name="rem_watch">شاهد الآن</string>
+    <string name="acc_test">اختبار الاتصال</string>
     <string name="privacy_text">الخصوصية: لا تتبّع ولا تحليلات ولا إعلانات. الحسابات والمفضلة والسجل تُحفظ على هذا الجهاز فقط. سجل الأخطاء يحذف كلمات المرور وعناوين IP.</string>
 </resources>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2
+- GitHub sync ran network calls on the UI thread (NetworkOnMainThreadException, shown as "null"): now on IO, clearer errors (401/403/404)
+- Account form: connection test (system DNS, Cloudflare, Google, Quad9, HTTP + Xtream login); DoH failures are logged
+
 ## 1.2.1
 - Removed USE_FULL_SCREEN_INTENT (Play Protect heuristics); reminders use a normal high-priority notification
 - USE_EXACT_ALARM (reserved for alarm/calendar apps) replaced by SCHEDULE_EXACT_ALARM with inexact fallback
