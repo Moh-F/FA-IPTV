@@ -75,6 +75,7 @@ object UiEnv {
     var isTv = false
     var pipSupported = false
     var inPip by mutableStateOf(false)
+    @Volatile var foreground = false
 }
 
 /** Card that works with touch AND the TV remote: focus ring, slight zoom, Menu key = long press. */
@@ -352,6 +353,61 @@ fun QrCode(text: String, modifier: Modifier = Modifier) {
         androidx.compose.foundation.Image(
             bmp, null, modifier.clip(RoundedCornerShape(8.dp)).background(Color.White).padding(6.dp),
             filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
+        )
+    }
+}
+
+/** Digits that do not jump around while they change (tabular figures). */
+val tabular = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum")
+
+/** Date and time as configured (German order dd.MM.yyyy, 24/12 h, seconds). */
+fun clockText(ms: Long = System.currentTimeMillis()): Pair<String, String> {
+    val s = Prefs.s
+    val loc = Locales.num()
+    val time = when {
+        s.clock24 && s.clockSeconds -> "HH:mm:ss"
+        s.clock24 -> "HH:mm"
+        s.clockSeconds -> "h:mm:ss a"
+        else -> "h:mm a"
+    }
+    val date = when (s.dateFormat) { "day" -> "EE, dd.MM."; "long" -> "EEEE, d. MMMM yyyy"; else -> "dd.MM.yyyy" }
+    return java.text.SimpleDateFormat(date, loc).format(Date(ms)) to java.text.SimpleDateFormat(time, loc).format(Date(ms))
+}
+
+@Composable
+fun ClockView(color: Color, size: Float = 18f, modifier: Modifier = Modifier) {
+    if (!Prefs.s.showClock && !Prefs.s.showDate) return
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(if (Prefs.s.clockSeconds) 1000 else 5000); now = System.currentTimeMillis() } }
+    val (d, t) = clockText(now)
+    Column(modifier, horizontalAlignment = Alignment.End) {
+        if (Prefs.s.showClock) Text(t, color = color, fontSize = size.sp, fontWeight = FontWeight.Medium, style = tabular)
+        if (Prefs.s.showDate) Text(d, color = color.copy(alpha = 0.8f), fontSize = (size * 0.62f).sp, style = tabular)
+    }
+}
+
+/** Small, unobtrusive "updating channels and media" indicator in a corner. */
+@Composable
+fun RefreshBadge(modifier: Modifier = Modifier) {
+    val p = com.mohdev.faiptv.data.Repo.progress ?: return
+    val s = Prefs.s
+    if (!s.refreshBadge) return
+    val scale = when (s.badgeSize) { "s" -> 0.8f; "l" -> 1.3f; else -> 1f }
+    val c = when (s.badgeColor) { "white" -> Color.White; "amber" -> Brand.Amber; "green" -> Color(0xFF34D399); else -> MaterialTheme.colorScheme.primary }
+    Row(
+        modifier.padding(12.dp).clip(RoundedCornerShape(50))
+            .background(Color(0xFF0B1220).copy(alpha = s.badgeOpacity / 100f))
+            .padding(horizontal = (10 * scale).dp, vertical = (5 * scale).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (p < 0f) CircularProgressIndicator(Modifier.size((12 * scale).dp), strokeWidth = 2.dp, color = c)
+        else androidx.compose.material3.LinearProgressIndicator(
+            progress = { p }, modifier = Modifier.width((60 * scale).dp).height((4 * scale).dp).clip(RoundedCornerShape(2.dp)),
+            color = c, trackColor = Color(0x33FFFFFF),
+        )
+        Spacer(Modifier.width((8 * scale).dp))
+        Text(
+            if (p < 0f) "⟳" else "${(p * 100).toInt()}%", color = Color.White, fontSize = (11 * scale).sp, style = tabular,
         )
     }
 }

@@ -1,7 +1,7 @@
-- Profile wie bei YouTube mit eigenen Favoriten, Reihenfolge und Verlauf; Kinderprofil sieht nur, was die Eltern erlauben
-- Mehrere benannte Favoritenlisten; Sender und Kategorien verschieben, sortieren, umbenennen, ausblenden
-- Verschlüsselte Synchronisation zwischen Geräten über Heimnetz und GitHub
-- Profi-Player: Umschalten mit den Pfeilen auch bei sichtbaren Tasten, transparente Senderliste über dem Bild, Infoleiste (echte Auflösung, Tempo, Datenverbrauch), Sendernummer-Eingabe
-- Optionale VLC-Engine (Deinterlacing, alle Formate) mit automatischem Wechsel; Qualitätswahl wie bei YouTube
-- Neue ruhige Farben (3 Stile), westliche Ziffern im Arabischen
-- Konto per QR-Code vom Handy hinzufügen, Konto-Tasten repariert, schnellere Listen und Senderstart
+- Sender, Filme und Serien aktualisieren sich im Hintergrund (alle 1/3/6/12/24 Std.) mit kleiner, anpassbarer Fortschrittsanzeige
+- Lösung für Server, die das DNS des Anbieters nicht findet (UnknownHostException): automatisches verschlüsseltes DNS
+- Programmführer als Raster, Erinnerungen und automatischer Senderstart zu Datum und Uhrzeit
+- Datum und Uhrzeit im deutschen Format im Player (24/12 Std., Sekunden), ruhige Ziffern, Download- und Upload-Tempo
+- Anpassung der Bildwiederholrate 50/60 Hz für flüssigere Bewegung
+- Gruppen, Sender und Filme nach oben/unten verschieben
+- Filme und Serien: längeres Vorausladen, dünne Fortschrittslinie, Dauer/Auflösung/Tempo in der Leiste

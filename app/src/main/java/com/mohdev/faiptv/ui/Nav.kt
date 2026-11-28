@@ -27,6 +27,7 @@ sealed interface Route {
     data class AccountEdit(val account: Account?, val type: AccountType) : Route
     data class Sub(val tab: Tab) : Route
     data class KidsAllowed(val profileId: String) : Route
+    data class Guide(val group: String) : Route
 }
 
 /** App-wide UI state: tab, back stack, dialogs. */
@@ -40,6 +41,9 @@ object Nav {
     var update by mutableStateOf<UpdateInfo?>(null)
     var showLog by mutableStateOf(false)
     var toast by mutableStateOf<String?>(null)
+    /** account id to channel id that should start now (reminder / automatic start) */
+    var pendingPlay by mutableStateOf<Pair<String, String>?>(null)
+    var reminder by mutableStateOf<com.mohdev.faiptv.core.Reminder?>(null)
     /** "Who's watching?" screen visible */
     var pickProfile by mutableStateOf(false)
 

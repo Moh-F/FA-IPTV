@@ -153,7 +153,7 @@ fun LiveScreen(wide: Boolean) {
     var newList by remember { mutableStateOf<String?>(null) }
     var addTo by remember { mutableStateOf<String?>(null) }
 
-    val groups = liveGroups(vis, withNew = true)
+    val groups = listOf(Group("*guide", "📅 " + stringResource(R.string.guide_grid), 0)) + liveGroups(vis, withNew = true)
     val channels = remember(vis, cat, Prefs.pd) { channelsOf(vis, cat) }
     val channelScope = when {
         cat.startsWith(LIST_PREFIX) -> "fav:" + cat.removePrefix(LIST_PREFIX)
@@ -162,7 +162,11 @@ fun LiveScreen(wide: Boolean) {
     }
 
     fun pick(g: Group) {
-        if (g.id == CAT_NEWLIST) newList = "" else Nav.guarded(g.locked) { cat = g.id }
+        when (g.id) {
+            CAT_NEWLIST -> newList = ""
+            "*guide" -> Nav.push(Route.Guide(cat))
+            else -> Nav.guarded(g.locked) { cat = g.id }
+        }
     }
     fun play(ch: Live) {
         Nav.liveQueue = channels
@@ -251,7 +255,11 @@ fun LiveScreen(wide: Boolean) {
         if (!vis.kids) {
             actions += stringResource(R.string.fav_add_to_list) to { addTo = key }
             if (inList) actions += stringResource(R.string.fav_remove_from_list) to { Prefs.removeFromList(cat.removePrefix(LIST_PREFIX), key) }
-            if (channelScope != null) actions += stringResource(R.string.action_move) to { moving = Moving(ch.id, "ch") }
+            if (channelScope != null) {
+                actions += stringResource(R.string.action_move) to { moving = Moving(ch.id, "ch") }
+                actions += stringResource(R.string.action_move_top) to { moveChannel(ch, -100_000) }
+                actions += stringResource(R.string.action_move_bottom) to { moveChannel(ch, 100_000) }
+            }
             actions += stringResource(R.string.action_rename) to { rename = key to vis.liveName(ch) }
             actions += stringResource(R.string.action_hide) to { Prefs.toggleHidden(acc.id, key) }
             actions += stringResource(R.string.action_record) to { startRecording(ctx, acc, ch) }
@@ -270,6 +278,8 @@ fun LiveScreen(wide: Boolean) {
             val ck = "livecat:${g.id}"
             val lk = "live:${g.id}"
             actions += stringResource(R.string.action_move) to { moving = Moving(g.id, "cats") }
+            actions += stringResource(R.string.action_move_top) to { moveGroup(g, -100_000) }
+            actions += stringResource(R.string.action_move_bottom) to { moveGroup(g, 100_000) }
             actions += stringResource(R.string.action_rename) to { rename = ck to g.label }
             actions += stringResource(R.string.action_hide) to { Prefs.toggleHidden(acc.id, ck) }
             actions += stringResource(if (Prefs.isLockedManually(acc.id, lk)) R.string.action_unlock else R.string.action_lock) to {
@@ -465,10 +475,7 @@ fun EpgPane(acc: Account, ch: Live, title: String, onPlayLive: () -> Unit) {
             }
         }
     }
-    confirm?.let { p ->
-        ConfirmDialog(stringResource(R.string.action_record_program) + "\n\n" + "${fmtDayShort(p.start)} ${fmtTime(p.start)} · ${p.title}",
-            onDismiss = { confirm = null }) { scheduleRecording(ctx, acc, ch, p) }
-    }
+    confirm?.let { p -> ProgrammeActions(acc, ch, p) { confirm = null } }
 }
 
 @Composable

@@ -51,6 +51,9 @@ object Repo {
         private set
     var loading by mutableStateOf(false)
         private set
+    /** Background refresh progress 0..1, -1 = unknown size, null = not refreshing. */
+    var progress by mutableStateOf<Float?>(null)
+        private set
     var error by mutableStateOf<String?>(null)
     /** Bumps when XMLTV data arrives so lists can show "now playing". */
     var epgVersion by mutableIntStateOf(0)
@@ -89,7 +92,8 @@ object Repo {
     suspend fun refresh(a: Account): Result<Unit> {
         loading = true
         error = null
-        return withContext(Dispatchers.IO) { doRefresh(a) }
+        progress = 0f
+        return try { withContext(Dispatchers.IO) { doRefresh(a) } } finally { progress = null }
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -100,7 +104,9 @@ object Repo {
                 AccountType.XTREAM -> {
                     val logged = try { Xtream.login(a) } catch (e: Xtream.LoginError) { throw e } catch (e: Exception) { null }
                     if (logged != null && Prefs.accounts.any { it.id == a.id }) Prefs.saveAccount(logged)
-                    Xtream.library(logged ?: a)
+                    progress = 0.05f
+                    var steps = 0
+                    Xtream.library(logged ?: a) { synchronized(this) { steps++; progress = 0.05f + 0.85f * steps / 6f } }
                 }
                 AccountType.M3U -> loadM3u(a)
             }
@@ -131,7 +137,11 @@ object Repo {
         return if (src.startsWith("file:")) {
             File(playlistDir(), src.removePrefix("file:")).bufferedReader().use { M3uParser.parse(it, a.id) }
         } else {
-            Net.open(src, a.userAgent).use { r -> r.body!!.charStream().buffered().use { M3uParser.parse(it, a.id) } }
+            Net.open(src, a.userAgent).use { r ->
+                val total = r.body!!.contentLength()
+                val counted = Counting(r.body!!.byteStream()) { n -> progress = if (total > 0) (0.9f * n / total).coerceAtMost(0.9f) else -1f }
+                counted.bufferedReader().use { M3uParser.parse(it, a.id) }
+            }
         }
     }
 
@@ -145,6 +155,16 @@ object Repo {
         if (cached && !forceRefresh && !isStale()) { startXmltv(a); return }
         val r = refresh(a)
         if (r.isFailure && cached) startXmltv(a)
+    }
+
+    /** Reports how many bytes were read (for the refresh progress). */
+    private class Counting(private val src: java.io.InputStream, private val report: (Long) -> Unit) : java.io.InputStream() {
+        private var n = 0L
+        private var last = 0L
+        override fun read(): Int = src.read().also { if (it >= 0) step(1) }
+        override fun read(b: ByteArray, off: Int, len: Int): Int = src.read(b, off, len).also { if (it > 0) step(it.toLong()) }
+        private fun step(k: Long) { n += k; if (n - last > 256 * 1024) { last = n; report(n) } }
+        override fun close() = src.close()
     }
 
     fun clear() { lib = null; xmltv = emptyMap(); epgCache.clear() }

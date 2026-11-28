@@ -34,7 +34,7 @@ import com.mohdev.faiptv.data.PlayRequest
 import java.util.Locale
 
 /** Media3 ExoPlayer: fastest start, adaptive quality (HLS/DASH), hardware decoding. */
-class ExoEngine(private val ctx: Context, private val l: EngineListener) : Engine {
+class ExoEngine(private val ctx: Context, private val l: EngineListener, private val vod: Boolean = false) : Engine {
     override val name = "ExoPlayer"
     private val bandwidth = DefaultBandwidthMeter.getSingletonInstance(ctx)
     private val selector = DefaultTrackSelector(ctx)
@@ -54,7 +54,12 @@ class ExoEngine(private val ctx: Context, private val l: EngineListener) : Engin
 
     val player: ExoPlayer = run {
         val s = Prefs.s
-        val (min, max, play, rebuf) = when (s.buffer) {
+        // Live: small buffer = fast start. Films/series: read far ahead like YouTube so playback never stops.
+        val (min, max, play, rebuf) = if (vod) when (s.vodBuffer) {
+            "max" -> listOf(60_000, 240_000, 1_500, 4_000)
+            "large" -> listOf(30_000, 150_000, 1_500, 3_000)
+            else -> listOf(15_000, 60_000, 1_500, 3_000)
+        } else when (s.buffer) {
             "small" -> listOf(4_000, 20_000, 700, 1_500)
             "large" -> listOf(30_000, 120_000, 2_500, 6_000)
             else -> listOf(12_000, 50_000, 1_500, 3_000)
@@ -63,6 +68,7 @@ class ExoEngine(private val ctx: Context, private val l: EngineListener) : Engin
         val load = DefaultLoadControl.Builder()
             .setBufferDurationsMs(min, max, startMs, rebuf)
             .setPrioritizeTimeOverSizeThresholds(true)
+            .setBackBuffer(if (vod) 30_000 else 0, true)
             .build()
         val renderers = DefaultRenderersFactory(ctx)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)

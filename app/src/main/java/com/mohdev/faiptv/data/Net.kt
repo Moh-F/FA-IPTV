@@ -20,6 +20,7 @@ object Net {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            .dns(SmartDns)
             .build()
     }
 

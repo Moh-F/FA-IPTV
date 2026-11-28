@@ -51,13 +51,13 @@ object Xtream {
         return a.copy(expires = info.expires, maxConnections = info.maxConnections, status = info.status, timezone = info.timezone)
     }
 
-    suspend fun library(a: Account): Library = coroutineScope {
-        val lc = async { XtreamParse.categories(Net.get(api(a, "get_live_categories"), a.userAgent)) }
-        val ls = async { XtreamParse.live(Net.get(api(a, "get_live_streams"), a.userAgent)) }
-        val mc = async { runCatching { XtreamParse.categories(Net.get(api(a, "get_vod_categories"), a.userAgent)) }.getOrDefault(emptyList()) }
-        val ms = async { runCatching { XtreamParse.movies(Net.get(api(a, "get_vod_streams"), a.userAgent)) }.getOrDefault(emptyList()) }
-        val sc = async { runCatching { XtreamParse.categories(Net.get(api(a, "get_series_categories"), a.userAgent)) }.getOrDefault(emptyList()) }
-        val ss = async { runCatching { XtreamParse.series(Net.get(api(a, "get_series"), a.userAgent)) }.getOrDefault(emptyList()) }
+    suspend fun library(a: Account, onStep: () -> Unit = {}): Library = coroutineScope {
+        val lc = async { XtreamParse.categories(Net.get(api(a, "get_live_categories"), a.userAgent)).also { onStep() } }
+        val ls = async { XtreamParse.live(Net.get(api(a, "get_live_streams"), a.userAgent)).also { onStep() } }
+        val mc = async { runCatching { XtreamParse.categories(Net.get(api(a, "get_vod_categories"), a.userAgent)) }.getOrDefault(emptyList()).also { onStep() } }
+        val ms = async { runCatching { XtreamParse.movies(Net.get(api(a, "get_vod_streams"), a.userAgent)) }.getOrDefault(emptyList()).also { onStep() } }
+        val sc = async { runCatching { XtreamParse.categories(Net.get(api(a, "get_series_categories"), a.userAgent)) }.getOrDefault(emptyList()).also { onStep() } }
+        val ss = async { runCatching { XtreamParse.series(Net.get(api(a, "get_series"), a.userAgent)) }.getOrDefault(emptyList()).also { onStep() } }
         Library(
             accountId = a.id, loadedAt = System.currentTimeMillis(),
             liveCats = lc.await(), live = ls.await(), movieCats = mc.await(), movies = ms.await(),

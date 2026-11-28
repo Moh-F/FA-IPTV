@@ -191,7 +191,7 @@ fun Main() {
     // periodic refresh while the app is open
     LaunchedEffect(Unit) {
         while (true) {
-            delay(30 * 60_000L)
+            delay(10 * 60_000L)
             val a = Prefs.active
             if (a != null && Repo.isStale() && !Repo.loading) Repo.refresh(a)
         }
@@ -229,6 +229,28 @@ fun Main() {
         }
     }
     Nav.update?.let { UpdateDialog(it) }
+    // reminder fired while the app is open
+    Nav.reminder?.let { r ->
+        AlertDialog(
+            onDismissRequest = { Nav.reminder = null },
+            title = { Text(r.channel) },
+            text = { Text(stringResource(R.string.rem_starts, r.title, fmtTime(r.at))) },
+            confirmButton = { Button(onClick = { Nav.reminder = null; Nav.pendingPlay = r.accountId to r.liveId }) { Text(stringResource(R.string.rem_watch)) } },
+            dismissButton = { TextButton(onClick = { Nav.reminder = null }) { Text(stringResource(R.string.action_close)) } },
+        )
+    }
+    // reminder / automatic start: switch account if needed, then play the channel
+    val pending = Nav.pendingPlay
+    LaunchedEffect(pending, Repo.lib) {
+        val (accId, liveId) = pending ?: return@LaunchedEffect
+        if (Prefs.active?.id != accId) { Prefs.update { it.copy(activeAccount = accId) }; return@LaunchedEffect }
+        val lib = Repo.lib ?: return@LaunchedEffect
+        if (lib.raw.accountId != accId) return@LaunchedEffect
+        val ch = lib.liveById[liveId]
+        val a = Prefs.active
+        Nav.pendingPlay = null
+        if (ch != null && a != null) { Nav.pickProfile = false; Nav.liveQueue = emptyList(); Nav.play(ctx, Repo.playLive(a, ch), forceInternal = true) }
+    }
     if (Nav.showLog) LogDialog()
 }
 
@@ -251,6 +273,7 @@ private fun Shell(top: Route?) {
                 is Route.SeriesDetail -> SeriesDetailScreen(top.series, wide)
                 is Route.AccountEdit -> AccountEditScreen(top.account, top.type)
                 is Route.KidsAllowed -> KidsAllowedScreen(top.profileId)
+                is Route.Guide -> GuideScreen(top.group, wide)
                 is Route.Sub -> TabContent(top.tab, wide)
                 else -> TabContent(Nav.tab, wide)
             }
@@ -269,6 +292,10 @@ private fun Shell(top: Route?) {
         if (Prefs.s.showRibbon) {
             VersionRibbon("v${BuildConfig.VERSION_NAME}", Modifier.align(Alignment.BottomEnd))
         }
+        val pos = Prefs.s.badgePos
+        val align = when (pos) { "tl" -> Alignment.TopStart; "tr" -> Alignment.TopEnd; "bl" -> Alignment.BottomStart; else -> Alignment.BottomEnd }
+        val bottomPad = if (pos.startsWith("b")) (if (wide) 0.dp else 80.dp) + (if (pos == "br" && Prefs.s.showRibbon) 36.dp else 0.dp) else 0.dp
+        RefreshBadge(Modifier.align(align).padding(bottom = bottomPad).then(if (!UiEnv.isTv) Modifier.systemBarsPadding() else Modifier))
     }
 }
 

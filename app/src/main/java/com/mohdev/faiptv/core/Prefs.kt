@@ -63,6 +63,40 @@ data class AppSettings(
     val ghRepo: String = "",
     val ghToken: String = "",
     val deviceId: String = "",
+    // network
+    val dns: String = "auto",              // auto | system | cloudflare | google | quad9
+    // background refresh indicator
+    val refreshBadge: Boolean = true,
+    val badgePos: String = "br",           // tl | tr | bl | br
+    val badgeSize: String = "m",           // s | m | l
+    val badgeColor: String = "accent",     // accent | white | amber | green
+    val badgeOpacity: Int = 85,
+    // clock / date in the player
+    val showClock: Boolean = true,
+    val showDate: Boolean = true,
+    val clock24: Boolean = true,
+    val clockSeconds: Boolean = false,
+    val dateFormat: String = "short",      // short dd.MM.yyyy | day EE, dd.MM. | long EEEE, d. MMMM yyyy
+    val showSpeeds: Boolean = true,
+    // display refresh rate
+    val afr: Boolean = false,
+    val afrFallback: Int = 0,              // 0 | 50 | 60 Hz when the frame rate is unknown (live TV)
+    // reminders / VOD
+    val remindMin: Int = 5,
+    val vodBuffer: String = "normal",      // normal | large | max
+    val vodMiniBar: Boolean = true,
+)
+
+/** Reminder or automatic channel start ("open"). Device-local. */
+@Serializable
+data class Reminder(
+    val id: String,
+    val accountId: String,
+    val liveId: String,
+    val channel: String,
+    val title: String,
+    val at: Long,
+    val open: Boolean,
 )
 
 @Serializable
@@ -135,6 +169,7 @@ data class UserData(
     val profiles: List<Profile> = emptyList(),
     val pdata: Map<String, ProfileData> = emptyMap(),
     val scheduled: List<ScheduledRec> = emptyList(),
+    val reminders: List<Reminder> = emptyList(),
     /** deletions for sync: "acc:<id>", "prof:<id>", "fav:<id>" -> time */
     val tomb: Map<String, Long> = emptyMap(),
     // v1.0 fields, migrated into the first profile
@@ -425,4 +460,8 @@ object Prefs {
     // ---------------------------------------------------------------- scheduled recordings (device-local)
     fun addScheduled(r: ScheduledRec) = edit(sync = false) { it.copy(scheduled = it.scheduled + r) }
     fun removeScheduled(id: String) = edit(sync = false) { d -> d.copy(scheduled = d.scheduled.filterNot { it.id == id }) }
+
+    // ---------------------------------------------------------------- reminders (device-local)
+    fun addReminder(r: Reminder) = edit(sync = false) { it.copy(reminders = it.reminders + r) }
+    fun removeReminder(id: String) = edit(sync = false) { d -> d.copy(reminders = d.reminders.filterNot { it.id == id }) }
 }

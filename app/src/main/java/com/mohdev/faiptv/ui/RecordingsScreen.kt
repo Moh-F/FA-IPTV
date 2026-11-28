@@ -55,6 +55,7 @@ fun RecordingsScreen() {
         RecordService.dir(ctx).listFiles()?.filter { it.isFile }?.sortedByDescending { it.lastModified() }.orEmpty()
     }
     var del by remember { mutableStateOf<File?>(null) }
+    var newSchedule by remember { mutableStateOf(false) }
     val activeFiles = RecordService.active.map { it.file.name }.toSet()
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -76,6 +77,19 @@ fun RecordingsScreen() {
                 }
             }
         }
+        item { SectionTitle(stringResource(R.string.rem_title)) }
+        val rems = Prefs.data.reminders.sortedBy { it.at }
+        items(rems, key = { "r" + it.id }) { r ->
+            RecRow(Icons.Default.Schedule, Brand.Amber, "${r.channel} · ${r.title}",
+                fmtDayShort(r.at) + " " + fmtTime(r.at) + " · " + stringResource(if (r.open) R.string.rem_open_at_start else R.string.rem_kind_remind)) {
+                IconButton(onClick = { com.mohdev.faiptv.record.Reminders.cancel(ctx, r.id) }) { Icon(Icons.Default.Delete, stringResource(R.string.action_cancel)) }
+            }
+        }
+        item {
+            FocusCard(onClick = { newSchedule = true }, modifier = Modifier.fillMaxWidth(), zoom = 1.01f) {
+                Text("+ " + stringResource(R.string.rem_new), Modifier.padding(14.dp))
+            }
+        }
         item { SectionTitle(stringResource(R.string.rec_files)) }
         val done = files.filter { it.name !in activeFiles }
         if (done.isEmpty()) item { Text(stringResource(R.string.rec_none), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
@@ -89,6 +103,7 @@ fun RecordingsScreen() {
         }
         item { Text(stringResource(R.string.rec_folder_hint, RecordService.dir(ctx).absolutePath), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
     }
+    if (newSchedule) ScheduleDialog { newSchedule = false }
     del?.let { f -> ConfirmDialog(stringResource(R.string.action_delete) + ": " + f.name, onDismiss = { del = null }) { f.delete(); tick++ } }
 }
 
@@ -105,4 +120,60 @@ private fun RecRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: 
             trailing()
         }
     }
+}
+
+
+/** "Open channel X on date … at …" or a reminder, entered by hand. */
+@Composable
+private fun ScheduleDialog(onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val acc = Prefs.active ?: run { onDismiss(); return }
+    val lib = com.mohdev.faiptv.data.Repo.lib ?: run { onDismiss(); return }
+    val vis = rememberVis(lib, acc.id)
+    var q by remember { mutableStateOf("") }
+    var pick by remember { mutableStateOf<com.mohdev.faiptv.data.Live?>(null) }
+    val start = System.currentTimeMillis() + 3_600_000L
+    var date by remember { mutableStateOf(java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.US).format(java.util.Date(start))) }
+    var time by remember { mutableStateOf(java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(start))) }
+    var open by remember { mutableStateOf(true) }
+    var err by remember { mutableStateOf(false) }
+    val matches = remember(q, vis) {
+        val n = com.mohdev.faiptv.data.Repo.norm(q.trim())
+        if (n.isEmpty()) emptyList() else vis.allLive.asSequence().filter { it.num.toString() == n || (lib.normName["l" + it.id] ?: "").contains(n) }.take(6).toList()
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rem_new)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedTextField(q, { q = it; pick = null }, label = { Text(stringResource(R.string.rem_channel_q)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (pick == null) matches.forEach { ch ->
+                    FocusCard(onClick = { pick = ch; q = vis.liveName(ch) }, modifier = Modifier.fillMaxWidth(), zoom = 1f) {
+                        Text((if (ch.num > 0) "${ch.num}  " else "") + vis.liveName(ch), Modifier.padding(10.dp))
+                    }
+                } else Text("✓ " + vis.liveName(pick!!), color = MaterialTheme.colorScheme.primary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedTextField(date, { date = it }, label = { Text("dd.MM.yyyy") }, singleLine = true, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.OutlinedTextField(time, { time = it }, label = { Text("HH:mm") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Switch(open, { open = it })
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(if (open) R.string.rem_open_at_start else R.string.rem_kind_remind))
+                }
+                if (err) Text(stringResource(R.string.rem_invalid), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                val ch = pick
+                val at = runCatching { java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.US).parse("${date.trim()} ${time.trim()}")!!.time }.getOrNull()
+                if (ch == null || at == null || at < System.currentTimeMillis()) { err = true; return@TextButton }
+                com.mohdev.faiptv.record.Reminders.add(ctx, com.mohdev.faiptv.core.Reminder(java.util.UUID.randomUUID().toString(), acc.id, ch.id, vis.liveName(ch), "", at, open))
+                Nav.toast = ctx.getString(R.string.rem_saved)
+                onDismiss()
+            }) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
 }

@@ -34,7 +34,26 @@ class MainActivity : AppCompatActivity() {
         UiEnv.pipSupported = Build.VERSION.SDK_INT >= 26 && pm.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (UiEnv.isTv) setBarsHidden(true)
+        handlePlayIntent(intent)
         setContent { FaRoot() }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handlePlayIntent(intent)
+    }
+
+    /** Reminder / automatic start: play a channel. */
+    private fun handlePlayIntent(i: android.content.Intent?) {
+        val live = i?.getStringExtra(com.mohdev.faiptv.record.Reminders.EXTRA_LIVE) ?: return
+        val acc = i.getStringExtra(com.mohdev.faiptv.record.Reminders.EXTRA_ACCOUNT) ?: return
+        Nav.pendingPlay = acc to live
+        i.removeExtra(com.mohdev.faiptv.record.Reminders.EXTRA_LIVE)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        UiEnv.foreground = true
     }
 
     /** Hides status/navigation bars (TV always, phones while the player is open). */
@@ -64,6 +83,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
+        UiEnv.foreground = false
         Prefs.flush()
         // PiP window closed by the user -> leave the player
         if (UiEnv.inPip || (Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode)) {
