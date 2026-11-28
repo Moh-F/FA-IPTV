@@ -1,7 +1,13 @@
 name: Release
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', 'V*']   # phone keyboards often capitalise the first letter
+  # Build again for a release/tag that already exists (e.g. if the automatic run did not start)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag of the release, e.g. v1.1.0'
+        required: true
 permissions:
   contents: write
 jobs:
@@ -9,12 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Version
         run: |
-          echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          echo "VER=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          TAG="${{ inputs.tag }}"
+          [ -z "$TAG" ] && TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"; VER="${VER#V}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          echo "Building $TAG (version $VER)"
 
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
