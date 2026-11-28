@@ -63,7 +63,7 @@ fun SearchScreen(wide: Boolean) {
         }
     }
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
+        QrTextField(
             value = q, onValueChange = { q = it }, singleLine = true,
             leadingIcon = { Icon(Icons.Default.Search, null) },
             placeholder = { androidx.compose.material3.Text(stringResource(R.string.search_hint)) },

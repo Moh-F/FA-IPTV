@@ -58,3 +58,12 @@ class SyncTest {
         assertEquals("120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b", k.joinToString("") { "%02x".format(it) })
     }
 }
+
+class SyncSettingsTest {
+    @org.junit.Test fun newerSettingsWin() {
+        val a = com.mohdev.faiptv.core.SyncDoc(settings = "A", settingsAt = 10)
+        val b = com.mohdev.faiptv.core.SyncDoc(settings = "B", settingsAt = 20)
+        org.junit.Assert.assertEquals("B", com.mohdev.faiptv.core.SyncMerge.merge(a, b).settings)
+        org.junit.Assert.assertEquals("B", com.mohdev.faiptv.core.SyncMerge.merge(b, a).settings)
+    }
+}

@@ -27,7 +27,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.mohdev.faiptv.core.Locales.repair()
-        com.mohdev.faiptv.core.Locales.applyDigits(this)
         val pm = packageManager
         val ui = getSystemService(UiModeManager::class.java)
         UiEnv.isTv = ui?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION ||
@@ -79,7 +78,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        com.mohdev.faiptv.core.Locales.applyDigits(this)
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {

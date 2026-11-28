@@ -35,7 +35,7 @@
     <string name="epg_next">Next</string>
     <string name="epg_none">No programme guide for this channel</string>
     <string name="epg_catchup">REPLAY</string>
-    <string name="epg_archive_days">Catch-up: %1$d days</string>
+    <string name="epg_archive_days">Catch-up: %1$s days</string>
     <string name="guide">Programme guide</string>
     <string name="action_play">Play</string>
     <string name="action_continue">Continue</string>
@@ -56,7 +56,7 @@
     <string name="action_close">Close</string>
     <string name="action_stop">Stop</string>
     <string name="season">seasons</string>
-    <string name="season_n">Season %1$d</string>
+    <string name="season_n">Season %1$s</string>
     <string name="cast">Cast</string>
     <string name="director">Director</string>
     <string name="genre">Genre</string>
@@ -75,8 +75,8 @@
     <string name="acc_use">Use this account</string>
     <string name="acc_expires">Expires %1$s</string>
     <string name="acc_unlimited">No expiry</string>
-    <string name="acc_connections">Connections: %1$d</string>
-    <string name="acc_counts">%1$d channels · %2$d movies · %3$d series</string>
+    <string name="acc_connections">Connections: %1$s</string>
+    <string name="acc_counts">%1$s channels · %2$s movies · %3$s series</string>
     <string name="acc_err_auth">Wrong username or password</string>
     <string name="acc_err_status">Account is not active: %1$s</string>
     <string name="acc_err_net">Could not reach the server</string>
@@ -151,7 +151,7 @@
     <string name="set_epg_shift">Programme guide time shift</string>
     <string name="set_parental">Parental control</string>
     <string name="set_auto_lock_adult">Lock adult categories automatically</string>
-    <string name="set_locked_count">Locked categories: %1$d</string>
+    <string name="set_locked_count">Locked categories: %1$s</string>
     <string name="set_locked_hint">Long-press a category to lock it</string>
     <string name="set_data">Data</string>
     <string name="set_refresh_hours">Refresh lists every</string>
@@ -224,7 +224,7 @@
     <string name="set_info_tech">Technical details (resolution, speed, data)</string>
     <string name="set_overlay_opacity">Channel list opacity in the player</string>
     <string name="set_player_more">More player options</string>
-    <string name="set_hidden">Hidden items: %1$d</string>
+    <string name="set_hidden">Hidden items: %1$s</string>
     <string name="set_unhide_all">Show all again</string>
     <string name="set_sync">Sync between devices</string>
     <string name="sync_hint">Profiles, favourites lists, order, names, history and accounts. End-to-end encrypted with your pass phrase; use the same pass phrase on every device.</string>
@@ -232,7 +232,7 @@
     <string name="sync_pass_hint">Pass phrase (min. 8 characters, same on all devices)</string>
     <string name="sync_off">Off</string>
     <string name="sync_lan">Sync in the home network</string>
-    <string name="sync_devices">Devices found: %1$d</string>
+    <string name="sync_devices">Devices found: %1$s</string>
     <string name="sync_gh_repo">GitHub repository (private)</string>
     <string name="sync_gh_token">GitHub token (contents read/write)</string>
     <string name="sync_now">Sync now</string>
@@ -275,7 +275,7 @@
     <string name="action_info">Details</string>
     <string name="rem_channel">Reminders</string>
     <string name="rem_title">Reminders and automatic start</string>
-    <string name="rem_remind">Remind me %1$d min before</string>
+    <string name="rem_remind">Remind me %1$s min before</string>
     <string name="rem_open_at_start">Open the channel at the start</string>
     <string name="rem_kind_remind">Reminder</string>
     <string name="rem_saved">Saved</string>
@@ -303,6 +303,20 @@
     <string name="set_night">Night mode (softer loud scenes)</string>
     <string name="set_leveling">Even volume between channels</string>
     <string name="set_passthrough">Dolby / DTS passthrough (VLC, receiver)</string>
-    <string name="q_report">Quality: %1$d/100 · start %2$s s · stalls %3$d · errors %4$d · %5$s</string>
+    <string name="q_report">Quality: %1$s/100 · start %2$s s · stalls %3$s · errors %4$s · %5$s</string>
+    <string name="qr_input">Type on the phone</string>
+    <string name="qr_input_hint">Scan with the phone (same Wi-Fi), type, press Send — the text appears here.</string>
+    <string name="qr_no_network">No home network connection.</string>
+    <string name="acc_shared">Server for all profiles</string>
+    <string name="acc_shared_on">All profiles see this server</string>
+    <string name="acc_shared_off">Only profile “%1$s” sees this server</string>
+    <string name="profile_switch">Switch profile</string>
+    <string name="restore_title">Restore from the cloud</string>
+    <string name="restore_hint">Brings back servers, profiles, lists, favourites, progress and settings — e.g. after reinstalling. Enter the restore key, or repository, token and pass phrase.</string>
+    <string name="restore_key">Restore key</string>
+    <string name="restore_key_short">Show (keep it safe)</string>
+    <string name="restore_key_hint">Keep this key safe (photo, password manager). With it any device gets everything back. Whoever has it can read your data.</string>
+    <string name="restore_or">or</string>
+    <string name="restore_go">Restore</string>
     <string name="privacy_text">Privacy: no tracking, no analytics, no ads. Accounts, favorites and history are stored only on this device. The error log removes passwords and IP addresses.</string>
 </resources>

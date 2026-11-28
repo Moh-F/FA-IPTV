@@ -34,7 +34,7 @@
     <string name="epg_next">Danach</string>
     <string name="epg_none">Keine Programmvorschau für diesen Sender</string>
     <string name="epg_catchup">REPLAY</string>
-    <string name="epg_archive_days">Replay: %1$d Tage</string>
+    <string name="epg_archive_days">Replay: %1$s Tage</string>
     <string name="guide">Programmführer</string>
     <string name="action_play">Abspielen</string>
     <string name="action_continue">Weiter</string>
@@ -55,7 +55,7 @@
     <string name="action_close">Schließen</string>
     <string name="action_stop">Stopp</string>
     <string name="season">Staffeln</string>
-    <string name="season_n">Staffel %1$d</string>
+    <string name="season_n">Staffel %1$s</string>
     <string name="cast">Besetzung</string>
     <string name="director">Regie</string>
     <string name="genre">Genre</string>
@@ -74,8 +74,8 @@
     <string name="acc_use">Dieses Konto verwenden</string>
     <string name="acc_expires">Läuft ab am %1$s</string>
     <string name="acc_unlimited">Kein Ablaufdatum</string>
-    <string name="acc_connections">Verbindungen: %1$d</string>
-    <string name="acc_counts">%1$d Sender · %2$d Filme · %3$d Serien</string>
+    <string name="acc_connections">Verbindungen: %1$s</string>
+    <string name="acc_counts">%1$s Sender · %2$s Filme · %3$s Serien</string>
     <string name="acc_err_auth">Benutzername oder Passwort falsch</string>
     <string name="acc_err_status">Konto ist nicht aktiv: %1$s</string>
     <string name="acc_err_net">Server nicht erreichbar</string>
@@ -150,7 +150,7 @@
     <string name="set_epg_shift">Zeitverschiebung Programmführer</string>
     <string name="set_parental">Jugendschutz</string>
     <string name="set_auto_lock_adult">Erwachsenen-Kategorien automatisch sperren</string>
-    <string name="set_locked_count">Gesperrte Kategorien: %1$d</string>
+    <string name="set_locked_count">Gesperrte Kategorien: %1$s</string>
     <string name="set_locked_hint">Kategorie lange drücken zum Sperren</string>
     <string name="set_data">Daten</string>
     <string name="set_refresh_hours">Listen aktualisieren alle</string>
@@ -223,7 +223,7 @@
     <string name="set_info_tech">Technische Details (Auflösung, Tempo, Daten)</string>
     <string name="set_overlay_opacity">Deckkraft der Senderliste im Player</string>
     <string name="set_player_more">Weitere Player-Optionen</string>
-    <string name="set_hidden">Ausgeblendete Einträge: %1$d</string>
+    <string name="set_hidden">Ausgeblendete Einträge: %1$s</string>
     <string name="set_unhide_all">Alle wieder anzeigen</string>
     <string name="set_sync">Sync zwischen Geräten</string>
     <string name="sync_hint">Profile, Favoritenlisten, Reihenfolge, Namen, Verlauf und Konten. Ende-zu-Ende verschlüsselt mit deiner Passphrase; auf jedem Gerät dieselbe verwenden.</string>
@@ -231,7 +231,7 @@
     <string name="sync_pass_hint">Passphrase (mind. 8 Zeichen, auf allen Geräten gleich)</string>
     <string name="sync_off">Aus</string>
     <string name="sync_lan">Sync im Heimnetz</string>
-    <string name="sync_devices">Gefundene Geräte: %1$d</string>
+    <string name="sync_devices">Gefundene Geräte: %1$s</string>
     <string name="sync_gh_repo">GitHub-Repository (privat)</string>
     <string name="sync_gh_token">GitHub-Token (Inhalte lesen/schreiben)</string>
     <string name="sync_now">Jetzt synchronisieren</string>
@@ -274,7 +274,7 @@
     <string name="action_info">Details</string>
     <string name="rem_channel">Erinnerungen</string>
     <string name="rem_title">Erinnerungen und automatischer Start</string>
-    <string name="rem_remind">%1$d Min. vorher erinnern</string>
+    <string name="rem_remind">%1$s Min. vorher erinnern</string>
     <string name="rem_open_at_start">Sender zum Beginn öffnen</string>
     <string name="rem_kind_remind">Erinnerung</string>
     <string name="rem_saved">Gespeichert</string>
@@ -302,6 +302,20 @@
     <string name="set_night">Nachtmodus (laute Szenen leiser)</string>
     <string name="set_leveling">Gleiche Lautstärke zwischen Sendern</string>
     <string name="set_passthrough">Dolby/DTS-Durchleitung (VLC, Receiver)</string>
-    <string name="q_report">Qualität: %1$d/100 · Start %2$s s · Ruckler %3$d · Fehler %4$d · %5$s</string>
+    <string name="q_report">Qualität: %1$s/100 · Start %2$s s · Ruckler %3$s · Fehler %4$s · %5$s</string>
+    <string name="qr_input">Am Handy eingeben</string>
+    <string name="qr_input_hint">Mit dem Handy scannen (gleiches WLAN), tippen, Senden drücken – der Text erscheint hier.</string>
+    <string name="qr_no_network">Keine Verbindung zum Heimnetz.</string>
+    <string name="acc_shared">Server für alle Profile</string>
+    <string name="acc_shared_on">Alle Profile sehen diesen Server</string>
+    <string name="acc_shared_off">Nur Profil „%1$s“ sieht diesen Server</string>
+    <string name="profile_switch">Profil wechseln</string>
+    <string name="restore_title">Aus der Cloud wiederherstellen</string>
+    <string name="restore_hint">Holt Server, Profile, Listen, Favoriten, Fortschritt und Einstellungen zurück – z. B. nach Neuinstallation. Wiederherstellungsschlüssel eingeben oder Repository, Token und Passphrase.</string>
+    <string name="restore_key">Wiederherstellungsschlüssel</string>
+    <string name="restore_key_short">Anzeigen (sicher aufbewahren)</string>
+    <string name="restore_key_hint">Schlüssel sicher aufbewahren (Foto, Passwortmanager). Damit bekommt jedes Gerät alles zurück. Wer ihn hat, kann deine Daten lesen.</string>
+    <string name="restore_or">oder</string>
+    <string name="restore_go">Wiederherstellen</string>
     <string name="privacy_text">Datenschutz: kein Tracking, keine Analyse, keine Werbung. Konten, Favoriten und Verlauf bleiben nur auf diesem Gerät. Das Fehlerprotokoll entfernt Passwörter und IP-Adressen.</string>
 </resources>

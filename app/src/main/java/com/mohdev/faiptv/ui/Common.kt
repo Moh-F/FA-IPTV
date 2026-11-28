@@ -222,7 +222,7 @@ fun PinDialog(onDismiss: () -> Unit, onOk: () -> Unit, forceCreate: Boolean = fa
         title = { Text(stringResource(if (create) R.string.pin_new else R.string.pin_enter)) },
         text = {
             Column {
-                OutlinedTextField(
+                QrTextField(
                     value = pin,
                     onValueChange = { v -> pin = v.filter { it.isDigit() }.take(8); error = false },
                     singleLine = true,
@@ -332,7 +332,7 @@ fun TextInputDialog(title: String, initial: String, onDismiss: () -> Unit, onSav
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { OutlinedTextField(t, { t = it }, Modifier.fillMaxWidth().focusRequester(fr), singleLine = true) },
+        text = { QrTextField(t, { t = it }, Modifier.fillMaxWidth().focusRequester(fr), singleLine = true) },
         confirmButton = { TextButton(onClick = { onSave(t); onDismiss() }) { Text(stringResource(R.string.action_save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )

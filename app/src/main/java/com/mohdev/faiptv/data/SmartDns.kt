@@ -28,14 +28,19 @@ object SmartDns : Dns {
     /** Hosts only the encrypted DNS could resolve (VLC needs their IP). */
     val viaDoh: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    /** Names nobody knows (NXDOMAIN everywhere): don't ask again for a minute (avoids dozens of identical log lines). */
+    private val missing = ConcurrentHashMap<String, Long>()
+
     override fun lookup(hostname: String): List<InetAddress> {
         cache[hostname]?.let { (t, a) -> if (System.currentTimeMillis() - t < 10 * 60_000L) return a }
+        missing[hostname]?.let { if (System.currentTimeMillis() - it < 60_000L) throw UnknownHostException("$hostname: unknown (no DNS knows this name)") }
         val mode = Prefs.s.dns
         if (mode == "system") return Dns.SYSTEM.lookup(hostname)
         if (mode == "auto") {
             try { return Dns.SYSTEM.lookup(hostname) } catch (_: UnknownHostException) { }
         }
         val order = when (mode) { "google" -> listOf(google, cloudflare, quad9); "quad9" -> listOf(quad9, cloudflare, google); else -> listOf(cloudflare, google, quad9) }
+        var nx = 0
         for (d in order) {
             try {
                 val a = d.lookup(hostname)
@@ -46,8 +51,13 @@ object SmartDns : Dns {
                     return a
                 }
             } catch (e: Exception) {
-                AppLog.w("dns", "DoH failed: ${e.javaClass.simpleName} ${e.message ?: ""}")
+                if (e.message?.contains("NXDOMAIN") == true) nx++
+                else AppLog.w("dns", "DoH failed: ${e.javaClass.simpleName} ${e.message ?: ""}")
             }
+        }
+        if (nx > 0) {
+            missing[hostname] = System.currentTimeMillis()
+            AppLog.w("dns", "$hostname does not exist (NXDOMAIN at Cloudflare/Google/Quad9) — address wrong or expired")
         }
         throw UnknownHostException(hostname)
     }

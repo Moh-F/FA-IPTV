@@ -146,15 +146,15 @@ private fun ScheduleDialog(onDismiss: () -> Unit) {
         title = { Text(stringResource(R.string.rem_new)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                androidx.compose.material3.OutlinedTextField(q, { q = it; pick = null }, label = { Text(stringResource(R.string.rem_channel_q)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                QrTextField(q, { q = it; pick = null }, label = { Text(stringResource(R.string.rem_channel_q)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (pick == null) matches.forEach { ch ->
                     FocusCard(onClick = { pick = ch; q = vis.liveName(ch) }, modifier = Modifier.fillMaxWidth(), zoom = 1f) {
                         Text((if (ch.num > 0) "${ch.num}  " else "") + vis.liveName(ch), Modifier.padding(10.dp))
                     }
                 } else Text("✓ " + vis.liveName(pick!!), color = MaterialTheme.colorScheme.primary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    androidx.compose.material3.OutlinedTextField(date, { date = it }, label = { Text("dd.MM.yyyy") }, singleLine = true, modifier = Modifier.weight(1f))
-                    androidx.compose.material3.OutlinedTextField(time, { time = it }, label = { Text("HH:mm") }, singleLine = true, modifier = Modifier.weight(1f))
+                    QrTextField(date, { date = it }, label = { Text("dd.MM.yyyy") }, singleLine = true, modifier = Modifier.weight(1f))
+                    QrTextField(time, { time = it }, label = { Text("HH:mm") }, singleLine = true, modifier = Modifier.weight(1f))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.material3.Switch(open, { open = it })

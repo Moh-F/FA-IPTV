@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+- Fix: with Arabic the app hung on Android 7–12 (1.3 changed the activity configuration → endless recreate). Configuration is no longer touched; numbers in texts are inserted as %s (Latin digits)
+- Every text field has a QR button: scan with the phone, type there, text lands on the TV (one-time code, home network only)
+- Servers belong to a profile (or to all profiles); each profile sees its own servers, lists and favourites
+- Restore from the cloud (GitHub, encrypted): after reinstalling, enter the restore key (or repo/token/pass phrase) → servers, profiles, lists, favourites, progress and settings come back; fresh installs take the cloud copy as it is
+- Shared settings are synced too (device-only ones like layout, AFR, passthrough stay local)
+- DNS: a name unknown everywhere (NXDOMAIN) is logged once and not looked up again for a minute
+
 ## 1.3.0
 - Arabic UI works again: the app locale was stored as "ar-u-nu-latn", which Android 13+ rejects; now plain "ar" with Latin digits applied separately (old value is repaired at start)
 - Higher-contrast colours (dark and light), text size option (normal / large / extra large)

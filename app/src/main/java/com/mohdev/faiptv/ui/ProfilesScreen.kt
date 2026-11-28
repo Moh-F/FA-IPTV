@@ -150,7 +150,7 @@ fun ProfilePinDialog(check: (String) -> Boolean, onDismiss: () -> Unit, onOk: ()
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.pin_enter)) },
         text = {
-            OutlinedTextField(
+            QrTextField(
                 pin, { v -> pin = v.filter { it.isDigit() }.take(8); err = false }, singleLine = true, isError = err,
                 visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
@@ -177,7 +177,7 @@ fun ProfileEditDialog(p0: Profile, onDismiss: () -> Unit) {
         title = { Text(stringResource(if (exists) R.string.profile_edit else R.string.profile_add)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.acc_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                QrTextField(name, { name = it }, label = { Text(stringResource(R.string.acc_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     profileColors.forEach { c ->
                         FocusCard(onClick = { color = c.toInt() }, shape = CircleShape, color = Color.Transparent, zoom = 1.1f) {
@@ -197,7 +197,7 @@ fun ProfileEditDialog(p0: Profile, onDismiss: () -> Unit) {
                         Switch(kids, null)
                     }
                 }
-                OutlinedTextField(
+                QrTextField(
                     pin, { v -> pin = v.filter { it.isDigit() }.take(8) }, singleLine = true,
                     label = { Text(stringResource(if (p0.pinHash.isBlank()) R.string.profile_pin_optional else R.string.pin_change)) },
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),

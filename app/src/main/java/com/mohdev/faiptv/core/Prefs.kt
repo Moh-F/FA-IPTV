@@ -182,6 +182,8 @@ data class UserData(
     val reminders: List<Reminder> = emptyList(),
     /** deletions for sync: "acc:<id>", "prof:<id>", "fav:<id>" -> time */
     val tomb: Map<String, Long> = emptyMap(),
+    /** last change of the settings that are shared between devices */
+    val settingsAt: Long = 0,
     // v1.0 fields, migrated into the first profile
     val favorites: Map<String, List<String>> = emptyMap(),
     val recentLive: Map<String, List<String>> = emptyMap(),
@@ -242,8 +244,42 @@ object Prefs {
         saveData()
     }
 
+    /** Settings that belong to this device only (not synced). */
+    private fun shared(x: AppSettings): AppSettings {
+        val d = AppSettings()
+        return x.copy(
+            deviceId = d.deviceId, activeAccount = d.activeAccount, lastProfile = d.lastProfile, syncPass = d.syncPass,
+            syncLan = d.syncLan, ghRepo = d.ghRepo, ghToken = d.ghToken, lanServer = d.lanServer, layout = d.layout,
+            tunneling = d.tunneling, afr = d.afr, afrFallback = d.afrFallback, passthrough = d.passthrough,
+            externalPackage = d.externalPackage,
+        )
+    }
+
+    fun sharedSettingsJson(): String = json.encodeToString(AppSettings.serializer(), shared(s))
+
+    /** Settings from another device / the cloud: shared part taken, device part kept. */
+    fun applySharedSettings(text: String, at: Long) {
+        val r = runCatching { json.decodeFromString(AppSettings.serializer(), text) }.getOrNull() ?: return
+        s = r.copy(
+            deviceId = s.deviceId, activeAccount = s.activeAccount, lastProfile = s.lastProfile, syncPass = s.syncPass,
+            syncLan = s.syncLan, ghRepo = s.ghRepo, ghToken = s.ghToken, lanServer = s.lanServer, layout = s.layout,
+            tunneling = s.tunneling, afr = s.afr, afrFallback = s.afrFallback, passthrough = s.passthrough,
+            externalPackage = s.externalPackage,
+        )
+        write("settings.json", json.encodeToString(AppSettings.serializer(), s))
+        synchronized(this) { data = data.copy(settingsAt = at) }
+        saveData()
+    }
+
+    /** Fresh install / nothing of the user yet: the cloud copy may replace everything. */
+    val pristine: Boolean get() = data.accounts.isEmpty() && data.profiles.size <= 1 &&
+        data.profiles.all { it.name.isBlank() && it.pinHash.isBlank() } &&
+        data.pdata.values.all { it.favLists.all { l -> l.items.isEmpty() } && it.resume.isEmpty() }
+
     fun update(f: (AppSettings) -> AppSettings) {
+        val old = s
         s = f(s)
+        if (shared(old) != shared(s)) edit { it.copy(settingsAt = now()) }
         saveSettingsJob?.cancel()
         saveSettingsJob = scope.launch { delay(300); write("settings.json", json.encodeToString(AppSettings.serializer(), s)) }
     }
@@ -282,8 +318,9 @@ object Prefs {
     }
 
     // ---------------------------------------------------------------- accounts
-    val accounts get() = data.accounts
-    val active: Account? get() = data.accounts.firstOrNull { it.id == s.activeAccount } ?: data.accounts.firstOrNull()
+    /** Servers this profile sees: its own and the shared ones (like a Google account on YouTube). */
+    val accounts get() = data.accounts.filter { it.owner.isBlank() || it.owner == profileId }
+    val active: Account? get() = accounts.let { l -> l.firstOrNull { it.id == s.activeAccount } ?: l.firstOrNull() }
 
     fun saveAccount(a: Account) {
         val stamped = a.copy(updated = now())
@@ -293,7 +330,7 @@ object Prefs {
             if (i >= 0) list[i] = stamped else list += stamped
             d.copy(accounts = list, tomb = d.tomb - "acc:${a.id}")
         }
-        if (s.activeAccount.isBlank() || data.accounts.size == 1) update { it.copy(activeAccount = a.id) }
+        if (s.activeAccount.isBlank() || accounts.size == 1) update { it.copy(activeAccount = a.id) }
     }
 
     fun deleteAccount(id: String) {
@@ -311,7 +348,7 @@ object Prefs {
                 tomb = d.tomb + ("acc:$id" to now()),
             )
         }
-        if (s.activeAccount == id) update { it.copy(activeAccount = data.accounts.firstOrNull()?.id ?: "") }
+        if (s.activeAccount == id) update { it.copy(activeAccount = accounts.firstOrNull()?.id ?: "") }
     }
 
     // ---------------------------------------------------------------- profiles

@@ -1,7 +1,5 @@
 package com.mohdev.faiptv.core
 
-import android.app.Activity
-import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import java.util.Locale
@@ -9,7 +7,7 @@ import java.util.Locale
 /**
  * Language handling. The app language is stored as a plain tag ("ar", "en", "de") so Android accepts it
  * (a tag with extensions like "ar-u-nu-latn" is rejected by the per-app language system on Android 13+).
- * Western digits (0123456789) in Arabic are applied separately to the activity's configuration.
+ * Western digits (0123456789) in Arabic: numbers are inserted as text, dates are formatted with num().
  */
 object Locales {
     /** "" = system, "ar", "en", "de" */
@@ -28,20 +26,11 @@ object Locales {
         if (tags.contains("-u-")) set(tags.substringBefore("-u-"))
     }
 
-    /** Arabic UI with Latin digits: patch the activity configuration (string formatting, dates). */
-    fun applyDigits(a: Activity) {
-        runCatching {
-            val res = a.resources
-            val cfg = Configuration(res.configuration)
-            val l = cfg.locales[0] ?: return
-            if (l.language == "ar" && l.getUnicodeLocaleType("nu") != "latn") {
-                cfg.setLocale(num(l))
-                @Suppress("DEPRECATION") res.updateConfiguration(cfg, res.displayMetrics)
-            }
-        }
-        val d = Locale.getDefault()
-        if (d.language == "ar" && d.getUnicodeLocaleType("nu") != "latn") Locale.setDefault(num(d))
-    }
+    /*
+     * Latin digits (0123456789) in Arabic: the activity configuration is NOT touched any more.
+     * Changing it (1.3) made AppCompat see a different locale than the stored one on Android 7–12 and recreate
+     * the activity again and again — the app hung. Numbers in texts are inserted as %s (Latin), dates use num().
+     */
 
     /** Same locale, Latin digits. Use for all number/date formatting. */
     fun num(l: Locale = Locale.getDefault()): Locale =
