@@ -1,8 +1,23 @@
+# Only small, safe updates, grouped into ONE pull request per month.
+# Big jumps (Android Gradle Plugin, Kotlin, OkHttp 5, …) are done on purpose together with Claude,
+# because they need code changes and a newer Android SDK.
 version: 2
 updates:
   - package-ecosystem: gradle
     directory: /
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    groups:
+      libraries:
+        patterns: ["*"]
+        update-types: ["patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]
