@@ -67,10 +67,12 @@ git push origin v1.0.0
 لكل إصدار لاحق: غيّر `VERSION_NAME` في `gradle.properties` واكتب ملاحظات `release_notes/*.md` ثم tag جديد.
 
 ### 3ب) إصدار جديد من الجوال (بدون git)
-1. افتح المستودع في كروم ← **Actions** ← **Release** ← **Run workflow**.
-2. اكتب رقم الإصدار (مثلاً `1.2.0`) أو اتركه فارغاً ليؤخذ من `gradle.properties`، واترك «Publish immediately» مفعّلاً.
-3. **Run workflow** ← بعد 8 دقائق تقريباً يكون الإصدار منشوراً ويصل التحديث للأجهزة.
-تعديل رقم الإصدار أو الملاحظات من الجوال: افتح الملف في المستودع ← أيقونة القلم ← Commit ← Pull request ← Merge.
+1. كروم ← المستودع ← **Releases** ← **Draft a new release**.
+2. **Choose a tag** ← اكتب `v1.2.0` ← **Create new tag: v1.2.0 on publish** (الهدف `main`).
+3. العنوان `v1.2.0` ← **Publish release**.
+4. بعد 8 دقائق تقريباً تُضاف ملفات APK و`latest.json` تلقائياً للإصدار ويصل التحديث للأجهزة.
+(إنشاء الـ tag مسموح لك فقط كمدير للمستودع، لذلك يتم من صفحة الإصدارات وليس من سير العمل.)
+تعديل رقم الإصدار أو الملاحظات من الجوال: افتح الملف ← أيقونة القلم ← Commit ← Pull request ← Merge.
 
 ### 4) التثبيت على Fire TV
 ```powershell

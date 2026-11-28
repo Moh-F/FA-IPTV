@@ -2,17 +2,6 @@ name: Release
 on:
   push:
     tags: ['v*']
-  # "Run workflow" button (works from the phone browser / GitHub app): no git needed
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version, e.g. 1.1.0 (empty = VERSION_NAME from gradle.properties)'
-        required: false
-        default: ''
-      publish:
-        description: 'Publish immediately (otherwise a draft you publish yourself)'
-        type: boolean
-        default: true
 permissions:
   contents: write
 jobs:
@@ -22,25 +11,10 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: Version and tag
+      - name: Version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VER="${{ inputs.version }}"
-            [ -z "$VER" ] && VER=$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2)
-            VER="${VER#v}"
-            TAG="v$VER"
-            if git rev-parse "$TAG" >/dev/null 2>&1; then echo "::error::Tag $TAG already exists. Use a new version."; exit 1; fi
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag "$TAG"
-            git push origin "$TAG"
-          else
-            TAG="${GITHUB_REF_NAME}"
-            VER="${TAG#v}"
-          fi
-          echo "VER=$VER" >> "$GITHUB_ENV"
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "Releasing $TAG"
+          echo "TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          echo "VER=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
@@ -98,6 +72,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          DRAFT="--draft"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.publish }}" = "true" ]; then DRAFT=""; fi
-          gh release create "$TAG" out/*.apk out/latest.json $DRAFT --title "$TAG" --notes-file release_notes/en.md
+          # Release made by hand on GitHub (also from the phone): attach the APKs to it.
+          # Tag pushed from a PC: create a draft release.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/*.apk out/latest.json --clobber
+          else
+            gh release create "$TAG" out/*.apk out/latest.json --draft --title "$TAG" --notes-file release_notes/en.md
+          fi
