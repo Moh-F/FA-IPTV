@@ -1,10 +1,16 @@
 package com.mohdev.faiptv.core
 
+import android.app.Activity
+import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import java.util.Locale
 
-/** Language handling. Arabic always uses Western digits (0123456789) as the user wants. */
+/**
+ * Language handling. The app language is stored as a plain tag ("ar", "en", "de") so Android accepts it
+ * (a tag with extensions like "ar-u-nu-latn" is rejected by the per-app language system on Android 13+).
+ * Western digits (0123456789) in Arabic are applied separately to the activity's configuration.
+ */
 object Locales {
     /** "" = system, "ar", "en", "de" */
     fun current(): String {
@@ -13,17 +19,25 @@ object Locales {
     }
 
     fun set(lang: String) {
-        val tag = when (lang) { "" -> ""; "ar" -> "ar-u-nu-latn"; else -> lang }
-        AppCompatDelegate.setApplicationLocales(if (tag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tag))
-        fixDigits()
+        AppCompatDelegate.setApplicationLocales(if (lang.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(lang))
     }
 
-    /** If the UI ends up in Arabic (also via the system language), switch it to Arabic with Latin digits. */
-    fun fixDigits() {
-        val l = AppCompatDelegate.getApplicationLocales()
-        val loc = if (l.isEmpty) Locale.getDefault() else l[0] ?: return
-        if (loc.language == "ar" && loc.getUnicodeLocaleType("nu") != "latn") {
-            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("ar-u-nu-latn"))
+    /** Repairs a stored "ar-u-nu-latn" from version 1.1/1.2. */
+    fun repair() {
+        val tags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        if (tags.contains("-u-")) set(tags.substringBefore("-u-"))
+    }
+
+    /** Arabic UI with Latin digits: patch the activity configuration (string formatting, dates). */
+    fun applyDigits(a: Activity) {
+        runCatching {
+            val res = a.resources
+            val cfg = Configuration(res.configuration)
+            val l = cfg.locales[0] ?: return
+            if (l.language == "ar" && l.getUnicodeLocaleType("nu") != "latn") {
+                cfg.setLocale(num(l))
+                @Suppress("DEPRECATION") res.updateConfiguration(cfg, res.displayMetrics)
+            }
         }
         val d = Locale.getDefault()
         if (d.language == "ar" && d.getUnicodeLocaleType("nu") != "latn") Locale.setDefault(num(d))

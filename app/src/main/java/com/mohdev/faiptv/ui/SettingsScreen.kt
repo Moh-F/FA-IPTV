@@ -63,6 +63,7 @@ fun SettingsScreen() {
     var textEdit by remember { mutableStateOf<Triple<String, String, (String) -> Unit>?>(null) }
     var pinStep by remember { mutableStateOf(0) } // 1 = verify old then create, 2 = create, 3 = verify then remove, 4 = verify then unlock all
     var confirm by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    var langDialog by remember { mutableStateOf(false) }
 
     @Suppress("UNCHECKED_CAST")
     fun <T> ask(title: String, options: List<Pair<T, String>>, selected: T?, pick: (T) -> Unit) {
@@ -104,6 +105,10 @@ fun SettingsScreen() {
             Row_(stringResource(R.string.set_palette), pals.firstOrNull { it.first == s.palette }?.second ?: pals[0].second) {
                 ask(ctx.getString(R.string.set_palette), pals, s.palette) { v -> set { it.copy(palette = v) } }
             }
+        }
+        item {
+            val sizes = listOf("m" to stringResource(R.string.text_m), "l" to stringResource(R.string.text_l), "xl" to stringResource(R.string.text_xl))
+            Row_(stringResource(R.string.set_text_size), sizes.first { it.first == s.textSize }.second) { ask(ctx.getString(R.string.set_text_size), sizes, s.textSize) { v -> set { it.copy(textSize = v) } } }
         }
         item { Row_(stringResource(R.string.set_layout), layouts.first { it.first == s.layout }.second) { ask(ctx.getString(R.string.set_layout), layouts, s.layout) { v -> set { it.copy(layout = v) } } } }
 
@@ -157,6 +162,11 @@ fun SettingsScreen() {
         item { Row_(stringResource(R.string.set_overlay_opacity), "${s.overlayOpacity}%") { ask(ctx.getString(R.string.set_overlay_opacity), listOf(40, 55, 70, 85, 100).map { it to "$it%" }, s.overlayOpacity) { v -> set { it.copy(overlayOpacity = v) } } } }
 
         item { Header(R.string.set_player_more) }
+        item { Row_(stringResource(R.string.set_live_pause), if (s.livePauseMin == 0) stringResource(R.string.afr_none) else "${s.livePauseMin} min") { ask(ctx.getString(R.string.set_live_pause), listOf(0, 1, 2, 3, 5).map { it to (if (it == 0) ctx.getString(R.string.afr_none) else "$it min") }, s.livePauseMin) { v -> set { it.copy(livePauseMin = v) } } } }
+        item { Toggle(stringResource(R.string.set_alt_source), s.altSource) { v -> set { it.copy(altSource = v) } } }
+        item { Toggle(stringResource(R.string.set_night), s.nightMode) { v -> set { it.copy(nightMode = v) } } }
+        item { Toggle(stringResource(R.string.set_leveling), s.leveling) { v -> set { it.copy(leveling = v) } } }
+        item { Toggle(stringResource(R.string.set_passthrough), s.passthrough) { v -> set { it.copy(passthrough = v) } } }
         item { Toggle(stringResource(R.string.set_afr), s.afr) { v -> set { it.copy(afr = v) } } }
         if (s.afr) item {
             val opts = listOf(0 to stringResource(R.string.afr_none), 50 to "50 Hz", 60 to "60 Hz")
@@ -197,6 +207,10 @@ fun SettingsScreen() {
         item { Row_(stringResource(R.string.set_locked_count, lockedCount), stringResource(R.string.set_locked_hint)) { if (lockedCount > 0) pinStep = 4 } }
 
         item { Header(R.string.set_data) }
+        item {
+            val keep = acc?.let { s.langFilter[it.id] }.orEmpty()
+            Row_(stringResource(R.string.set_lang_filter), if (keep.isEmpty()) stringResource(R.string.lang_all) else keep.joinToString(", ")) { if (acc != null) langDialog = true }
+        }
         item { Toggle(stringResource(R.string.set_badge), s.refreshBadge) { v -> set { it.copy(refreshBadge = v) } } }
         if (s.refreshBadge) {
             item {
@@ -317,6 +331,27 @@ fun SettingsScreen() {
         )
     }
     confirm?.let { (text, action) -> ConfirmDialog(text, onDismiss = { confirm = null }, onConfirm = action) }
+    if (langDialog && acc != null) {
+        val full = Repo.full
+        val codes = remember(full) { full?.let { com.mohdev.faiptv.data.LangFilter.available(it) }.orEmpty() }
+        MultiChoiceDialog(
+            stringResource(R.string.set_lang_filter),
+            codes.map { (c, n) -> c to "$c  ($n)" },
+            s.langFilter[acc.id].orEmpty().toSet(),
+            header = {
+                Text(stringResource(R.string.lang_filter_hint), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(s.langKeepUnknown, { v -> set { it.copy(langKeepUnknown = v) } })
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.lang_keep_unknown), fontSize = 13.sp)
+                }
+            },
+            onDismiss = { langDialog = false },
+        ) { sel ->
+            set { it.copy(langFilter = it.langFilter + (acc.id to sel.toList())) }
+            Repo.rebuild()
+        }
+    }
     when (pinStep) {
         1 -> PinDialog(onDismiss = { pinStep = 0 }, onOk = { pinStep = 2 })
         2 -> PinDialog(onDismiss = { pinStep = 0 }, onOk = { pinStep = 0 }, forceCreate = true)

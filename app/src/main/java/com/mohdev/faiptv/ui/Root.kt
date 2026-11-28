@@ -202,12 +202,13 @@ fun Main() {
 
     val top = Nav.top
     val shellState = rememberSaveableStateHolder()
-    BackHandler(enabled = top !is com.mohdev.faiptv.ui.Route.Player && (Nav.stack.isNotEmpty() || Nav.tab != Tab.HOME)) {
+    BackHandler(enabled = top !is com.mohdev.faiptv.ui.Route.Player && top !is Route.Multi && (Nav.stack.isNotEmpty() || Nav.tab != Tab.HOME)) {
         if (!Nav.pop()) Nav.tab = Tab.HOME
     }
 
     when {
         top is Route.Player -> PlayerScreen(top.req)
+        top is Route.Multi -> com.mohdev.faiptv.player.MultiViewScreen(top.liveIds)
         Nav.pickProfile -> {
             BackHandler { Nav.pickProfile = false }
             ProfilePicker { Nav.pickProfile = false; Nav.go(Tab.HOME) }

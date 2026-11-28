@@ -60,6 +60,21 @@ object Repo {
         private set
 
     private var xmltv: Map<String, List<Programme>> = emptyMap()
+    /** Complete library as downloaded; [lib] is the language-filtered view. */
+    var full: Library? = null
+        private set
+
+    private fun filtered(l: Library): Library {
+        val keep = Prefs.s.langFilter[l.accountId].orEmpty().toSet()
+        return LangFilter.apply(l, keep, Prefs.s.langKeepUnknown)
+    }
+
+    /** Re-applies the language filter without downloading again. */
+    fun rebuild() {
+        val f = full ?: return
+        lib = Lib(filtered(f))
+        scope.launch { lib?.normName?.size }
+    }
     private var xmltvJob: Job? = null
     private val epgCache = ConcurrentHashMap<String, Pair<Long, List<Programme>>>()
 
@@ -77,7 +92,8 @@ object Repo {
         if (!f.exists()) return@withContext false
         runCatching {
             val l = proto.decodeFromByteArray(Library.serializer(), f.readBytes())
-            lib = Lib(l)
+            full = l
+            lib = Lib(filtered(l))
             scope.launch { lib?.normName?.size }
             true
         }.onFailure { AppLog.e("repo", "cache unreadable", it); f.delete() }.getOrDefault(false)
@@ -110,7 +126,8 @@ object Repo {
                 }
                 AccountType.M3U -> loadM3u(a)
             }
-            lib = Lib(l)
+            full = l
+            lib = Lib(filtered(l))
             scope.launch { lib?.normName?.size }
             epgCache.clear()
             runCatching {
@@ -167,7 +184,7 @@ object Repo {
         override fun close() = src.close()
     }
 
-    fun clear() { lib = null; xmltv = emptyMap(); epgCache.clear() }
+    fun clear() { full = null; lib = null; xmltv = emptyMap(); epgCache.clear() }
 
     fun startXmltv(a: Account) {
         if (a.type != AccountType.M3U) return

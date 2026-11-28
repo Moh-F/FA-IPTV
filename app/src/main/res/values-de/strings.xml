@@ -284,5 +284,24 @@
     <string name="rem_starts">%1$s beginnt um %2$s</string>
     <string name="rem_watch">Jetzt ansehen</string>
     <string name="acc_test">Verbindung testen</string>
+    <string name="player_alt_source">Wechsel zu anderer Quelle: %1$s</string>
+    <string name="player_back_live">Zurück zu Live</string>
+    <string name="player_last">Letzter Sender</string>
+    <string name="player_multi">Mehrfachansicht</string>
+    <string name="multi_pick">Sender wählen</string>
+    <string name="set_text_size">Schriftgröße</string>
+    <string name="text_m">Normal</string>
+    <string name="text_l">Groß</string>
+    <string name="text_xl">Sehr groß</string>
+    <string name="set_lang_filter">Sendersprachen / Länder</string>
+    <string name="lang_all">Alle</string>
+    <string name="lang_filter_hint">Nur gewählte Sprachen anzeigen. Nichts gewählt = alles. Die Zahl ist die Anzahl der Gruppen.</string>
+    <string name="lang_keep_unknown">Einträge ohne Sprachkennung behalten</string>
+    <string name="set_live_pause">Live-TV pausieren (Speicher)</string>
+    <string name="set_alt_source">Automatische Ersatzquelle (FHD → HD → SD)</string>
+    <string name="set_night">Nachtmodus (laute Szenen leiser)</string>
+    <string name="set_leveling">Gleiche Lautstärke zwischen Sendern</string>
+    <string name="set_passthrough">Dolby/DTS-Durchleitung (VLC, Receiver)</string>
+    <string name="q_report">Qualität: %1$d/100 · Start %2$s s · Ruckler %3$d · Fehler %4$d · %5$s</string>
     <string name="privacy_text">Datenschutz: kein Tracking, keine Analyse, keine Werbung. Konten, Favoriten und Verlauf bleiben nur auf diesem Gerät. Das Fehlerprotokoll entfernt Passwörter und IP-Adressen.</string>
 </resources>

@@ -65,8 +65,10 @@ class ExoEngine(private val ctx: Context, private val l: EngineListener, private
             else -> listOf(12_000, 50_000, 1_500, 3_000)
         }
         val startMs = if (s.fastStart) minOf(play, 700) else play
+        // Live: allow pausing ("time shift") — while paused the stream keeps loading into memory up to N minutes
+        val maxBuf = if (!vod && s.livePauseMin > 0) maxOf(max, s.livePauseMin * 60_000) else max
         val load = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(min, max, startMs, rebuf)
+            .setBufferDurationsMs(min, maxBuf, startMs, rebuf)
             .setPrioritizeTimeOverSizeThresholds(true)
             .setBackBuffer(if (vod) 30_000 else 0, true)
             .build()
@@ -155,6 +157,8 @@ class ExoEngine(private val ctx: Context, private val l: EngineListener, private
     }
 
     override fun setQuality(q: String) = applyQuality(player, q)
+    override fun setVolume(v: Float) { player.volume = v }
+    override fun audioSession(): Int = player.audioSessionId
 
     override fun stats(): Stats {
         val v: Format? = player.videoFormat

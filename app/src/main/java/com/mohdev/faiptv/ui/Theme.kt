@@ -60,17 +60,17 @@ val palettes = listOf(
     // Calm navy + teal (default): soft contrast, readable from the sofa, light mode is not glaring
     Palette(
         "navy",
-        dark(0xFF0B1220, 0xFF111A2B, 0xFF162133, 0xFF1F2C42, 0xFF33445F, 0xFFE8EDF5, 0xFFA3B3C9, 0xFF2DD4BF, 0xFF042F2A, 0xFF38BDF8, 0xFFF472B6),
-        light(0xFFECEFF3, 0xFFF7F9FB, 0xFFE3E8EE, 0xFFD8DFE8, 0xFFB4C0CF, 0xFF1E293B, 0xFF4B5A6E, 0xFF0F766E, 0xFF0369A1, 0xFFBE185D),
+        dark(0xFF080D18, 0xFF0F1727, 0xFF152036, 0xFF1E2C48, 0xFF3B4F73, 0xFFF8FAFC, 0xFFCBD5E1, 0xFF2EE6CF, 0xFF00211C, 0xFF60C8FF, 0xFFFF7AB8),
+        light(0xFFEEF2F6, 0xFFFFFFFF, 0xFFE2E8F0, 0xFFD3DCE7, 0xFF94A3B8, 0xFF0B1220, 0xFF334155, 0xFF0B7A70, 0xFF0369A1, 0xFFBE185D),
     ),
     Palette(
         "gold",
-        dark(0xFF0D0D0F, 0xFF151518, 0xFF1C1C20, 0xFF26262B, 0xFF3E3E45, 0xFFEDEDED, 0xFFABABB3, 0xFFD4AF37, 0xFF241B00, 0xFFE9C46A, 0xFFE76F51),
+        dark(0xFF0A0A0C, 0xFF141417, 0xFF1C1C21, 0xFF28282E, 0xFF4A4A52, 0xFFFAFAFA, 0xFFD0D0D6, 0xFFD4AF37, 0xFF241B00, 0xFFE9C46A, 0xFFE76F51),
         light(0xFFF1EEE7, 0xFFFAF8F3, 0xFFE9E4D9, 0xFFDFD8CA, 0xFFC2B8A3, 0xFF2A2620, 0xFF5E574A, 0xFF8A6D1D, 0xFF9C6644, 0xFFA4161A),
     ),
     Palette(
         "red",
-        dark(0xFF121212, 0xFF1A1A1A, 0xFF212121, 0xFF2B2B2B, 0xFF424242, 0xFFF0F0F0, 0xFFAAAAAA, 0xFFE50914, 0xFFFFFFFF, 0xFFFF6B6B, 0xFFFFB703),
+        dark(0xFF0F0F0F, 0xFF181818, 0xFF212121, 0xFF2D2D2D, 0xFF4D4D4D, 0xFFFAFAFA, 0xFFD0D0D0, 0xFFE50914, 0xFFFFFFFF, 0xFFFF6B6B, 0xFFFFB703),
         light(0xFFEFEFEF, 0xFFF9F9F9, 0xFFE6E6E6, 0xFFDBDBDB, 0xFFBDBDBD, 0xFF1F1F1F, 0xFF555555, 0xFFB20710, 0xFFC1121F, 0xFFB45309),
     ),
 )
@@ -85,5 +85,12 @@ fun isDark(): Boolean = when (Prefs.s.theme) {
 @Composable
 fun FaTheme(content: @Composable () -> Unit) {
     val p = palettes.firstOrNull { it.id == Prefs.s.palette } ?: palettes[0]
-    MaterialTheme(colorScheme = if (isDark()) p.dark else p.light, content = content)
+    // Text size (TV sofa distance): scales all sp sizes of the app
+    val d = androidx.compose.ui.platform.LocalDensity.current
+    val factor = when (Prefs.s.textSize) { "l" -> 1.15f; "xl" -> 1.3f; else -> 1f }
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, d.fontScale * factor),
+    ) {
+        MaterialTheme(colorScheme = if (isDark()) p.dark else p.light, content = content)
+    }
 }

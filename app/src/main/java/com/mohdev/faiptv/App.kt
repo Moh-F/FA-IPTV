@@ -15,6 +15,7 @@ class App : Application(), ImageLoaderFactory {
         AppLog.init(this)
         Prefs.init(this)
         Repo.init(this)
+        com.mohdev.faiptv.data.Quality.init(this)
         com.mohdev.faiptv.core.Sync.init(this)
     }
 
