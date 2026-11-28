@@ -45,9 +45,31 @@ object SmartDns : Dns {
                     AppLog.i("dns", "resolved via DNS over HTTPS")
                     return a
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                AppLog.w("dns", "DoH failed: ${e.javaClass.simpleName} ${e.message ?: ""}")
+            }
         }
         throw UnknownHostException(hostname)
+    }
+
+    data class Probe(val name: String, val result: String, val ok: Boolean)
+
+    /** Diagnosis for the account screen: which resolver knows the host, and does the server answer. */
+    fun probe(hostname: String): List<Probe> {
+        val out = ArrayList<Probe>()
+        fun one(name: String, f: () -> List<InetAddress>) {
+            out += try {
+                val a = f()
+                Probe(name, a.take(3).joinToString(", ") { it.hostAddress ?: "?" }, a.isNotEmpty())
+            } catch (e: Exception) {
+                Probe(name, e.javaClass.simpleName + (e.message?.let { ": $it" } ?: ""), false)
+            }
+        }
+        one("System DNS") { Dns.SYSTEM.lookup(hostname) }
+        one("Cloudflare 1.1.1.1") { cloudflare.lookup(hostname) }
+        one("Google 8.8.8.8") { google.lookup(hostname) }
+        one("Quad9 9.9.9.9") { quad9.lookup(hostname) }
+        return out
     }
 
     /** For engines without our resolver (VLC): put the IP into the URL when only DoH knew the host (cache only, no network). */

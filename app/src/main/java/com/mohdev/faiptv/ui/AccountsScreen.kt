@@ -205,6 +205,8 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
     var ua by rememberSaveable { mutableStateOf(existing?.userAgent ?: "") }
     var showPass by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    var testing by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<List<Triple<String, String, Boolean>>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     val id = remember { existing?.id ?: UUID.randomUUID().toString() }
 
@@ -326,6 +328,24 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
                 if (busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                 else Text(stringResource(R.string.acc_login))
             }
+            OutlinedButton(onClick = {
+                val target = if (type == AccountType.XTREAM) Xtream.normalizeServer(server) else url.trim()
+                if (target.isBlank()) return@OutlinedButton
+                testing = true; testResult = emptyList()
+                scope.launch {
+                    testResult = withContext(Dispatchers.IO) { connectionTest(target, user.trim(), pass.trim(), type, ua.trim()) }
+                    testing = false
+                }
+            }, enabled = !testing, modifier = Modifier.fillMaxWidth()) {
+                if (testing) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.acc_test))
+            }
+            testResult.forEach { (label, value, ok) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (ok) "✓" else "✗", color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, modifier = Modifier.width(22.dp))
+                    Text("$label: ", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             Text(stringResource(R.string.acc_privacy_note), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             PhoneInputHint()
         }
@@ -340,4 +360,30 @@ private fun Field(value: String, onChange: (String) -> Unit, label: String, plac
         keyboardOptions = KeyboardOptions(keyboardType = kb),
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+
+/** Step by step: which DNS knows the server, and does the server answer (HTTP + Xtream login). */
+private fun connectionTest(target: String, user: String, pass: String, type: AccountType, ua: String): List<Triple<String, String, Boolean>> {
+    val out = ArrayList<Triple<String, String, Boolean>>()
+    val host = runCatching { java.net.URI(if (target.contains("://")) target else "http://$target").host }.getOrNull()
+    if (host.isNullOrBlank()) return listOf(Triple("URL", target, false))
+    com.mohdev.faiptv.data.SmartDns.probe(host).forEach { out += Triple(it.name, it.result, it.ok) }
+    val url = if (type == AccountType.XTREAM)
+        "$target/player_api.php?username=${java.net.URLEncoder.encode(user, "UTF-8")}&password=${java.net.URLEncoder.encode(pass, "UTF-8")}"
+    else target
+    out += try {
+        val t0 = System.currentTimeMillis()
+        Net.open(url, ua).use { r ->
+            val body = r.body!!.source().let { src -> src.request(2048); src.buffer.snapshot().utf8().take(120) }
+            val ms = System.currentTimeMillis() - t0
+            val auth = if (type == AccountType.XTREAM) (if (body.contains("\"auth\":1") || body.contains("\"auth\":\"1\"")) " · login OK" else " · login ?") else ""
+            Triple("HTTP", "${r.code} · $ms ms$auth", true)
+        }
+    } catch (e: Net.HttpError) {
+        Triple("HTTP", "HTTP ${e.code}", false)
+    } catch (e: Exception) {
+        Triple("HTTP", e.javaClass.simpleName + (e.message?.let { ": " + it.take(80) } ?: ""), false)
+    }
+    return out
 }

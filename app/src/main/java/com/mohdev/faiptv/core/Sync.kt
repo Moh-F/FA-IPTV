@@ -99,7 +99,12 @@ object Sync {
         }
     }
 
-    suspend fun syncNow(manual: Boolean = false): Boolean = mutex.withLock {
+    /** Network work always on the IO threads (was called from the UI → NetworkOnMainThreadException). */
+    suspend fun syncNow(manual: Boolean = false): Boolean = withContext(Dispatchers.IO) { syncLocked(manual) }
+
+    private fun why(e: Throwable) = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+
+    private suspend fun syncLocked(manual: Boolean): Boolean = mutex.withLock {
         if (!enabled) return false
         running = true
         var ok = false
@@ -108,7 +113,7 @@ object Sync {
             if (Prefs.s.syncLan) {
                 for (p in peers.toList()) {
                     runCatching { syncPeer(p, pass) }.onSuccess { ok = true }
-                        .onFailure { AppLog.w("sync", "peer ${p.name}: ${it.message}") }
+                        .onFailure { AppLog.w("sync", "peer ${p.name}: ${why(it)}") }
                 }
             }
             // GitHub: at most every 10 minutes (each change is a commit), always when asked
@@ -116,7 +121,7 @@ object Sync {
             if (ghDue && Prefs.s.ghRepo.isNotBlank() && Prefs.s.ghToken.isNotBlank()) {
                 lastGitHub = System.currentTimeMillis()
                 runCatching { syncGitHub(pass) }.onSuccess { ok = true }
-                    .onFailure { AppLog.w("sync", "github: ${it.message}"); status = "GitHub: ${it.message}" }
+                    .onFailure { AppLog.w("sync", "github: ${why(it)}"); status = "GitHub: ${why(it)}" }
             }
             if (ok) { lastSync = System.currentTimeMillis(); status = "" }
         } finally {
@@ -155,8 +160,9 @@ object Sync {
                     val bytes = Base64.decode(o.getString("content").replace("\n", ""), Base64.DEFAULT)
                     remote = SyncCrypto.open(bytes, pass)
                 }
-                404 -> Unit
-                401, 403 -> throw IllegalStateException("token/permission (HTTP ${r.code})")
+                404 -> Unit   // first sync: file not there yet (or repository name wrong)
+                401 -> throw IllegalStateException("token invalid (HTTP 401)")
+                403 -> throw IllegalStateException("token has no access to this repository (HTTP 403)")
                 else -> throw Net.HttpError(r.code)
             }
         }

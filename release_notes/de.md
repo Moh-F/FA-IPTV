@@ -1,1 +1,2 @@
-- Sicherheit: unnötige Vollbild-Benachrichtigungsberechtigung entfernt
+- GitHub-Sync repariert
+- „Verbindung testen“ im Kontoformular: zeigt, welches DNS den Server kennt und ob er antwortet

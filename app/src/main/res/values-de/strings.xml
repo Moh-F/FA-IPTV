@@ -283,5 +283,6 @@
     <string name="rem_invalid">Sender und künftige Zeit wählen</string>
     <string name="rem_starts">%1$s beginnt um %2$s</string>
     <string name="rem_watch">Jetzt ansehen</string>
+    <string name="acc_test">Verbindung testen</string>
     <string name="privacy_text">Datenschutz: kein Tracking, keine Analyse, keine Werbung. Konten, Favoriten und Verlauf bleiben nur auf diesem Gerät. Das Fehlerprotokoll entfernt Passwörter und IP-Adressen.</string>
 </resources>

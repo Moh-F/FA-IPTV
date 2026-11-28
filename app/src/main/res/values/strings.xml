@@ -284,5 +284,6 @@
     <string name="rem_invalid">Choose a channel and a future date/time</string>
     <string name="rem_starts">%1$s starts at %2$s</string>
     <string name="rem_watch">Watch now</string>
+    <string name="acc_test">Test connection</string>
     <string name="privacy_text">Privacy: no tracking, no analytics, no ads. Accounts, favorites and history are stored only on this device. The error log removes passwords and IP addresses.</string>
 </resources>
