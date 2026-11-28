@@ -119,7 +119,7 @@ object Repo {
             val l = when (a.type) {
                 AccountType.XTREAM -> {
                     val logged = try { Xtream.login(a) } catch (e: Xtream.LoginError) { throw e } catch (e: Exception) { null }
-                    if (logged != null && Prefs.accounts.any { it.id == a.id }) Prefs.saveAccount(logged)
+                    if (logged != null && Prefs.data.accounts.any { it.id == a.id }) Prefs.saveAccount(logged)
                     progress = 0.05f
                     var steps = 0
                     Xtream.library(logged ?: a) { synchronized(this) { steps++; progress = 0.05f + 0.85f * steps / 6f } }

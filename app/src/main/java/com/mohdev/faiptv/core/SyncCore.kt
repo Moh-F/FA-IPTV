@@ -19,6 +19,9 @@ data class SyncDoc(
     val pdata: Map<String, ProfileData> = emptyMap(),
     val tomb: Map<String, Long> = emptyMap(),
     val at: Long = 0,
+    /** shared settings as JSON + time of their last change */
+    val settings: String = "",
+    val settingsAt: Long = 0,
 )
 
 /** Last-writer-wins merge per account, per profile, per favourites list and per resume point. Pure, unit-tested. */
@@ -42,7 +45,8 @@ object SyncMerge {
         }
         // drop tombstones older than 90 days
         val cutoff = maxOf(a.at, b.at) - 90L * 86_400_000L
-        return SyncDoc(1, accounts, profiles, pdata, tomb.filterValues { it > cutoff }, maxOf(a.at, b.at))
+        val st = if (b.settingsAt > a.settingsAt) b else a
+        return SyncDoc(1, accounts, profiles, pdata, tomb.filterValues { it > cutoff }, maxOf(a.at, b.at), st.settings, st.settingsAt)
     }
 
     fun mergeProfile(x: ProfileData, y: ProfileData): ProfileData {

@@ -25,6 +25,8 @@ data class Account(
     val timezone: String = "",
     /** last change (sync) */
     val updated: Long = 0,
+    /** profile that owns this server ("" = all profiles) */
+    val owner: String = "",
 )
 
 enum class Kind { LIVE, MOVIE, SERIES }

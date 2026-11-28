@@ -64,6 +64,13 @@ object LanServer {
         AppLog.i("lan", "stopped")
     }
 
+    /** http://ip:port of this device in the home network, or null. */
+    fun base(): String? {
+        val p = port
+        val ip = localIp() ?: return null
+        return if (p > 0) "http://$ip:$p" else null
+    }
+
     private fun localIp(): String? = runCatching {
         NetworkInterface.getNetworkInterfaces().toList().flatMap { it.inetAddresses.toList() }
             .firstOrNull { it is Inet4Address && it.isSiteLocalAddress }?.hostAddress
@@ -132,6 +139,21 @@ object LanServer {
             else send(out, 200, "application/octet-stream", reply)
             return
         }
+        // text from the phone for one open field: authorised by the field's own random code
+        if (path == "/in") {
+            val k = query["k"].orEmpty()
+            val html = "text/html; charset=utf-8"
+            if (method == "POST") {
+                val v = String(body, Charsets.UTF_8).split("&").firstOrNull { it.startsWith("v=") }?.substringAfter("v=")
+                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+                if (v != null && RemoteInput.submit(k, v)) send(out, 200, html, "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><body style='font-family:sans-serif;background:#080D18;color:#2EE6CF;font-size:22px;padding:30px'>✓".toByteArray())
+                else send(out, 410, "text/plain", "Closed".toByteArray())
+            } else {
+                val p = RemoteInput.page(k)
+                if (p != null) send(out, 200, html, p.toByteArray()) else send(out, 410, "text/plain", "Closed".toByteArray())
+            }
+            return
+        }
         if (!tokenOk(query["token"] ?: headers["x-token"])) {
             send(out, 403, "text/plain", "Forbidden".toByteArray()); return
         }
@@ -150,7 +172,7 @@ object LanServer {
                 if (acc == null) { send(out, 400, "text/plain", "Missing fields".toByteArray()); return }
                 val latch = java.util.concurrent.CountDownLatch(1)
                 main.post {
-                    Prefs.saveAccount(acc)
+                    Prefs.saveAccount(acc.copy(owner = Prefs.profileId))
                     Prefs.update { it.copy(activeAccount = acc.id) }
                     com.mohdev.faiptv.ui.Nav.go(com.mohdev.faiptv.ui.Tab.HOME)
                     com.mohdev.faiptv.ui.appScope.launch { com.mohdev.faiptv.data.Repo.activate(acc, forceRefresh = true) }

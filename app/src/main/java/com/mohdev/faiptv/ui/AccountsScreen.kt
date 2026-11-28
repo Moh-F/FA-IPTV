@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -95,6 +96,13 @@ fun WelcomeScreen() {
             Text(stringResource(R.string.acc_welcome_sub), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
             Spacer(Modifier.height(28.dp))
             AddButtons()
+            Spacer(Modifier.height(12.dp))
+            var restore by remember { mutableStateOf(false) }
+            OutlinedButton(onClick = { restore = true }, Modifier.widthIn(max = 380.dp).fillMaxWidth().height(52.dp)) {
+                Icon(Icons.Default.CloudDownload, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.restore_title))
+            }
+            if (Prefs.profiles.size > 1) TextButton(onClick = { Nav.pickProfile = true }) { Text(stringResource(R.string.profile_switch)) }
+            if (restore) RestoreDialog { restore = false }
             Spacer(Modifier.height(24.dp))
             PhoneInputHint()
         }
@@ -204,6 +212,7 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
     var epg by rememberSaveable { mutableStateOf(existing?.epgUrl ?: "") }
     var ua by rememberSaveable { mutableStateOf(existing?.userAgent ?: "") }
     var showPass by remember { mutableStateOf(false) }
+    var shared by rememberSaveable { mutableStateOf(existing != null && existing.owner.isBlank()) }
     var busy by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<List<Triple<String, String, Boolean>>>(emptyList()) }
@@ -250,6 +259,7 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
             username = user.trim(), password = pass.trim(),
             m3uUrl = if (type == AccountType.M3U) file.ifBlank { url.trim() } else "",
             epgUrl = epg.trim(), userAgent = ua.trim(),
+            owner = if (shared) "" else existing?.owner?.ifBlank { null } ?: Prefs.profileId,
         )
         if (type == AccountType.XTREAM && (acc.server.isBlank() || acc.username.isBlank())) return
         if (type == AccountType.M3U && acc.m3uUrl.isBlank()) return
@@ -303,7 +313,7 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
             if (type == AccountType.XTREAM) {
                 Field(server, { server = it }, stringResource(R.string.acc_server), "http://example.com:8080", KeyboardType.Uri)
                 Field(user, { user = it }, stringResource(R.string.acc_user))
-                OutlinedTextField(
+                QrTextField(
                     value = pass, onValueChange = { pass = it }, label = { Text(stringResource(R.string.acc_pass)) }, singleLine = true,
                     visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = { IconButton(onClick = { showPass = !showPass }) { Icon(if (showPass) Icons.Default.VisibilityOff else Icons.Default.Visibility, null) } },
@@ -323,6 +333,15 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
                 Field(epg, { epg = it }, stringResource(R.string.acc_epg_url), "http://…/epg.xml.gz", KeyboardType.Uri)
             }
             Field(ua, { ua = it }, stringResource(R.string.acc_ua), Net.defaultUserAgent)
+            if (Prefs.profiles.size > 1) FocusCard(onClick = { shared = !shared }, modifier = Modifier.fillMaxWidth(), zoom = 1f) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.acc_shared))
+                        Text(stringResource(if (shared) R.string.acc_shared_on else R.string.acc_shared_off, Prefs.profile.name.ifBlank { "1" }), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    androidx.compose.material3.Switch(shared, null)
+                }
+            }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(onClick = ::save, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 if (busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
@@ -354,7 +373,7 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
 
 @Composable
 private fun Field(value: String, onChange: (String) -> Unit, label: String, placeholder: String = "", kb: KeyboardType = KeyboardType.Text) {
-    OutlinedTextField(
+    QrTextField(
         value = value, onValueChange = onChange, label = { Text(label) }, singleLine = true,
         placeholder = if (placeholder.isNotBlank()) ({ Text(placeholder, maxLines = 1) }) else null,
         keyboardOptions = KeyboardOptions(keyboardType = kb),

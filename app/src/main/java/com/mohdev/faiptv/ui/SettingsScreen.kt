@@ -64,6 +64,8 @@ fun SettingsScreen() {
     var pinStep by remember { mutableStateOf(0) } // 1 = verify old then create, 2 = create, 3 = verify then remove, 4 = verify then unlock all
     var confirm by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var langDialog by remember { mutableStateOf(false) }
+    var keyDialog by remember { mutableStateOf(false) }
+    var restoreDialog by remember { mutableStateOf(false) }
 
     @Suppress("UNCHECKED_CAST")
     fun <T> ask(title: String, options: List<Pair<T, String>>, selected: T?, pick: (T) -> Unit) {
@@ -255,6 +257,7 @@ fun SettingsScreen() {
         }
 
         item { Header(R.string.set_sync) }
+        item { Row_(stringResource(R.string.restore_title), "") { restoreDialog = true } }
         item { Text(stringResource(R.string.sync_hint), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
         item {
             Row_(stringResource(R.string.sync_pass), if (s.syncPass.isBlank()) stringResource(R.string.sync_off) else "••••••••") {
@@ -276,6 +279,7 @@ fun SettingsScreen() {
                 Row_(stringResource(R.string.sync_now), if (Sync.running) "…" else Sync.status.ifBlank { last }) { scope.launch { Sync.syncNow(manual = true) } }
             }
         }
+        if (Sync.enabled && s.ghRepo.isNotBlank() && s.ghToken.isNotBlank()) item { Row_(stringResource(R.string.restore_key), stringResource(R.string.restore_key_short)) { keyDialog = true } }
 
         item { Header(R.string.set_updates) }
         item { Toggle(stringResource(R.string.set_check_updates), s.checkUpdates) { v -> set { it.copy(checkUpdates = v) } } }
@@ -325,12 +329,14 @@ fun SettingsScreen() {
         AlertDialog(
             onDismissRequest = { textEdit = null },
             title = { Text(title) },
-            text = { OutlinedTextField(t, { t = it }, Modifier.fillMaxWidth()) },
+            text = { QrTextField(t, { t = it }, Modifier.fillMaxWidth()) },
             confirmButton = { TextButton(onClick = { save(t); textEdit = null }) { Text(stringResource(R.string.action_save)) } },
             dismissButton = { TextButton(onClick = { textEdit = null }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
     confirm?.let { (text, action) -> ConfirmDialog(text, onDismiss = { confirm = null }, onConfirm = action) }
+    if (keyDialog) RestoreKeyDialog { keyDialog = false }
+    if (restoreDialog) RestoreDialog { restoreDialog = false }
     if (langDialog && acc != null) {
         val full = Repo.full
         val codes = remember(full) { full?.let { com.mohdev.faiptv.data.LangFilter.available(it) }.orEmpty() }

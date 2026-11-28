@@ -1,10 +1,6 @@
-## FA IPTV 1.3.0
-- Arabische Oberfläche funktioniert wieder
-- Kontrastreichere Farben, Schriftgröße einstellbar
-- Senderfilter nach Sprache / Land (Mehrfachauswahl je Konto)
-- Symbole und Netzgeschwindigkeit im Player wackeln nicht mehr
-- Letzter Sender (Taste oder 0), Live-TV pausieren mit „Zurück zu Live“
-- Mehrfachansicht 2 / 4 Sender
-- Automatische Ersatzquelle (FHD → HD → SD)
-- Nachtmodus, Lautstärkeausgleich, Dolby/DTS-Durchleitung
-- Qualitätsbericht pro Sender
+## FA IPTV 1.4.0
+- Behoben: App hing mit arabischer Sprache
+- QR-Taste neben jedem Textfeld: am Handy tippen
+- Jedes Profil hat eigene Server, Listen und Favoriten (oder gemeinsame Server)
+- Wiederherstellen aus der Cloud nach Neuinstallation: alles kommt zurück
+- Einstellungen werden zwischen Geräten synchronisiert

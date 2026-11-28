@@ -278,7 +278,7 @@ class RecordAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         val id = intent.getStringExtra("sched") ?: return
         val rec = Prefs.data.scheduled.firstOrNull { it.id == id } ?: return
-        val acc = Prefs.accounts.firstOrNull { it.id == rec.accountId } ?: return
+        val acc = Prefs.data.accounts.firstOrNull { it.id == rec.accountId } ?: return
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {

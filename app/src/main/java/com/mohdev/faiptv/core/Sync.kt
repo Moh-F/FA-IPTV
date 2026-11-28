@@ -62,11 +62,36 @@ object Sync {
         Prefs.onChange = { schedule() }
     }
 
-    fun localDoc() = Prefs.data.let { SyncDoc(1, it.accounts, it.profiles, it.pdata, it.tomb, System.currentTimeMillis()) }
+    fun localDoc() = Prefs.data.let { SyncDoc(1, it.accounts, it.profiles, it.pdata, it.tomb, System.currentTimeMillis(), Prefs.sharedSettingsJson(), it.settingsAt) }
+
+    /** What we bring into a merge: nothing when this is a fresh install (the cloud copy is restored as it is). */
+    private fun mine(): SyncDoc = if (Prefs.pristine) SyncDoc(at = System.currentTimeMillis()) else localDoc()
 
     private suspend fun apply(merged: SyncDoc) = withContext(Dispatchers.Main) {
+        val fresh = Prefs.pristine && merged.accounts.isNotEmpty()
         Prefs.applySynced(merged.accounts, merged.profiles, merged.pdata, merged.tomb)
+        if (merged.settings.isNotBlank() && merged.settingsAt > Prefs.data.settingsAt) Prefs.applySharedSettings(merged.settings, merged.settingsAt)
+        if (fresh) {
+            AppLog.i("sync", "restored from the cloud: ${merged.accounts.size} servers, ${merged.profiles.size} profiles")
+            if (Prefs.profiles.size > 1) com.mohdev.faiptv.ui.Nav.pickProfile = true
+        }
     }
+
+    /** New device / reinstalled: "repo|token|pass phrase" from the restore key or typed in. */
+    suspend fun restore(repo: String, token: String, pass: String): String? {
+        Prefs.update { it.copy(ghRepo = repo.trim(), ghToken = token.trim(), syncPass = pass.trim()) }
+        if (!enabled) return "pass phrase: min. 8"
+        val ok = syncNow(manual = true)
+        start()
+        return if (ok) null else status.ifBlank { "?" }
+    }
+
+    fun restoreKey(): String = Base64.encodeToString("${Prefs.s.ghRepo}\n${Prefs.s.ghToken}\n${Prefs.s.syncPass}".toByteArray(), Base64.NO_WRAP or Base64.URL_SAFE)
+
+    fun parseKey(key: String): Triple<String, String, String>? = runCatching {
+        val p = String(Base64.decode(key.trim(), Base64.URL_SAFE or Base64.NO_WRAP)).split("\n")
+        if (p.size == 3 && p[0].contains("/")) Triple(p[0], p[1], p[2]) else null
+    }.getOrNull()
 
     /** Called on the server side (LanServer) for POST /api/sync. Returns the encrypted merged document. */
     fun handleIncoming(keyId: String?, body: ByteArray): ByteArray? {
@@ -74,7 +99,7 @@ object Sync {
         val pass = Prefs.s.syncPass
         if (keyId != SyncCrypto.keyId(pass)) return null
         val remote = runCatching { SyncCrypto.open(body, pass) }.getOrNull() ?: return null
-        val merged = SyncMerge.merge(localDoc(), remote)
+        val merged = SyncMerge.merge(mine(), remote)
         kotlinx.coroutines.runBlocking { apply(merged) }
         AppLog.i("sync", "merged from a device in the home network")
         lastSync = System.currentTimeMillis()
@@ -138,7 +163,7 @@ object Sync {
         Net.client.newCall(req).execute().use { r ->
             if (!r.isSuccessful) throw Net.HttpError(r.code)
             val merged = SyncCrypto.open(r.body!!.bytes(), pass)
-            apply(SyncMerge.merge(localDoc(), merged))
+            apply(SyncMerge.merge(mine(), merged))
         }
         AppLog.i("sync", "synced with ${p.name}")
     }
@@ -166,7 +191,7 @@ object Sync {
                 else -> throw Net.HttpError(r.code)
             }
         }
-        val merged = remote?.let { SyncMerge.merge(localDoc(), it) } ?: localDoc()
+        val merged = remote?.let { SyncMerge.merge(mine(), it) } ?: localDoc()
         apply(merged)
         if (remote != null && same(remote!!, merged)) { AppLog.i("sync", "GitHub already up to date"); return }
         val body = JSONObject()
