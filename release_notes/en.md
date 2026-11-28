@@ -1,7 +1,1 @@
-- Channels, films and series update in the background (every 1/3/6/12/24 h) with a small, customisable progress indicator
-- Fix for servers the provider's DNS cannot find (UnknownHostException): automatic encrypted DNS
-- Grid programme guide, programme reminders and automatic channel start at a chosen date and time
-- Date and time in German format in the player (24/12 h, seconds), steady digits, download and upload speed
-- Display refresh rate matching 50/60 Hz for smoother motion
-- Move groups, channels and films up/down, to top/bottom
-- Films and series: longer read-ahead, thin progress line, duration/resolution/speed in the bar
+- Security: removed the unneeded full-screen notification permission
