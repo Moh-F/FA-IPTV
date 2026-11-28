@@ -44,6 +44,7 @@ class VlcEngine(ctx: Context, private val l: EngineListener) : Engine {
             "--stats",
         )
         if (s.deinterlace) opts += listOf("--deinterlace=-1", "--deinterlace-mode=yadif")
+        if (s.passthrough) opts += "--spdif"
         lib = LibVLC(ctx.applicationContext, opts)
         mp = MediaPlayer(lib)
         mp.setEventListener { ev ->
@@ -101,6 +102,9 @@ class VlcEngine(ctx: Context, private val l: EngineListener) : Engine {
             else -> MediaPlayer.ScaleType.SURFACE_BEST_FIT
         }
     }
+
+    override fun setVolume(v: Float) { mp.volume = (v * 100).toInt() }
+    override fun audioSession(): Int = 0
 
     override fun setQuality(q: String) {
         quality = q

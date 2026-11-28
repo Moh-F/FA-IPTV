@@ -22,6 +22,7 @@ import java.util.UUID
 data class AppSettings(
     val theme: String = "system",          // system | dark | light
     val palette: String = "navy",          // navy | gold | red
+    val textSize: String = "m",            // m | l | xl
     val layout: String = "auto",           // auto | tv | phone
     val player: String = "internal",       // internal | external | ask
     val engine: String = "auto",           // auto (Exo, VLC on failure) | exo | vlc
@@ -85,6 +86,15 @@ data class AppSettings(
     val remindMin: Int = 5,
     val vodBuffer: String = "normal",      // normal | large | max
     val vodMiniBar: Boolean = true,
+    // v1.3
+    /** accountId -> language/country codes to keep ("AR", "DE", …); empty = everything */
+    val langFilter: Map<String, List<String>> = emptyMap(),
+    val langKeepUnknown: Boolean = true,
+    val livePauseMin: Int = 2,             // pause live up to N minutes (RAM), 0 = off
+    val altSource: Boolean = true,
+    val nightMode: Boolean = false,
+    val leveling: Boolean = false,
+    val passthrough: Boolean = false,      // VLC: send Dolby/DTS to the receiver
 )
 
 /** Reminder or automatic channel start ("open"). Device-local. */

@@ -55,6 +55,9 @@ interface Engine {
     fun setResize(mode: Int)
     /** "auto" | "max" | "1080" … for this session */
     fun setQuality(q: String)
+    fun setVolume(v: Float)
+    /** Android audio session (0 = unknown), for night mode / volume levelling */
+    fun audioSession(): Int
     fun tracks(): TrackSet
     fun stats(): Stats
     fun release()

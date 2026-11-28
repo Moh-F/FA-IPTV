@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0
+- Arabic UI works again: the app locale was stored as "ar-u-nu-latn", which Android 13+ rejects; now plain "ar" with Latin digits applied separately (old value is repaired at start)
+- Higher-contrast colours (dark and light), text size option (normal / large / extra large)
+- Language / country filter per account (multi-select with group counts, keep-unknown option); filtered in memory, lists and search get lighter
+- Player: fixed-width info chips and buttons with tabular digits — nothing jitters any more
+- Last channel (button or key 0), live pause / time shift (1–5 min memory) with "back to live"
+- Multi-view 2 / 4 channels (sound on focused picture, OK = full screen)
+- Automatic alternative source after repeated failure (same channel FHD → HD → SD, best quality score first)
+- Audio: night mode and volume levelling (DynamicsProcessing, Android 9+), Dolby/DTS passthrough (VLC)
+- Per-channel quality report (score, start time, stalls, errors, bitrate) in the channel menu
+
 ## 1.2.2
 - GitHub sync ran network calls on the UI thread (NetworkOnMainThreadException, shown as "null"): now on IO, clearer errors (401/403/404)
 - Account form: connection test (system DNS, Cloudflare, Google, Quad9, HTTP + Xtream login); DoH failures are logged

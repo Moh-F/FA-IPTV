@@ -1,2 +1,10 @@
-- Fixed GitHub sync
-- "Test connection" in the account form: shows which DNS knows the server and whether it answers
+## FA IPTV 1.3.0
+- Arabic UI works again
+- Higher-contrast colours, text size option
+- Channel language / country filter (multi-select per account)
+- Player icons and network speed no longer jitter
+- Last channel (button or key 0), pause live TV with "back to live"
+- Multi-view 2 / 4 channels
+- Automatic alternative source (FHD → HD → SD)
+- Night mode, volume levelling, Dolby/DTS passthrough
+- Per-channel quality report

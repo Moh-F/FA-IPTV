@@ -39,6 +39,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.CalendarViewWeek
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
@@ -114,6 +116,8 @@ import com.mohdev.faiptv.data.Live
 import com.mohdev.faiptv.data.PlayRequest
 import com.mohdev.faiptv.data.Programme
 import com.mohdev.faiptv.data.Repo
+import com.mohdev.faiptv.data.Quality
+import com.mohdev.faiptv.data.Alternatives
 import com.mohdev.faiptv.record.RecordService
 import com.mohdev.faiptv.ui.Brand
 import com.mohdev.faiptv.ui.ChoiceDialog
@@ -205,12 +209,21 @@ fun PlayerScreen(req: PlayRequest) {
     fun showHint(s: String) { hint = s; poke() }
 
     // ---------------- engine
+    val loadStart = remember { longArrayOf(0L, 0L) }     // [load time, 1 = start already counted]
+    val fx = remember { AudioFx() }
+    var pausedAt by remember { mutableLongStateOf(0L) }
+    var behindMs by remember { mutableLongStateOf(0L) }   // live pause: how far behind the live picture
+    val triedAlt = remember { HashSet<String>() }
     val listener = remember {
         object : EngineListener {
             var onErr: (String, Boolean) -> Unit = { _, _ -> }
             var onEnd: () -> Unit = {}
-            override fun onState(playing: Boolean, buffering0: Boolean) { isPlaying = playing; buffering = buffering0; PlayerState.playing = playing }
-            override fun onReady() { retries = 0; error = null; buffering = false }
+            var onReadyHook: () -> Unit = {}
+            override fun onState(playing: Boolean, buffering0: Boolean) {
+                if (buffering0 && !buffering && loadStart[1] == 1L && playing) Quality.rebuffer(cur.key)
+                isPlaying = playing; buffering = buffering0; PlayerState.playing = playing
+            }
+            override fun onReady() { retries = 0; error = null; buffering = false; onReadyHook() }
             override fun onEnded() = onEnd()
             override fun onError(code: String, unsupported: Boolean) = onErr(code, unsupported)
         }
@@ -247,6 +260,13 @@ fun PlayerScreen(req: PlayRequest) {
         Nav.replaceTop(Route.Player(Repo.playLive(a, ch)))
     }
 
+    /** Back to the channel watched before (like the "last" key of a receiver). */
+    fun lastChannel() {
+        val a = acc ?: return
+        val prev = Prefs.pd.recentLive[a.id].orEmpty().firstOrNull { it != cur.liveId } ?: return
+        lib?.liveById?.get(prev)?.let { playLive(it) }
+    }
+
     /** Zapping: the info bar shows the target at once, the stream opens after a short pause (saves connections). */
     fun zap(step: Int) {
         if (!isLive || queue.isEmpty()) return
@@ -272,14 +292,31 @@ fun PlayerScreen(req: PlayRequest) {
         if (cur.kind == Kind.SERIES && Prefs.s.autoNext) nextEpisode()
         else if (isLive) engine.load(cur)
     }
+    listener.onReadyHook = {
+        if (loadStart[1] == 0L) {
+            loadStart[1] = 1L
+            Quality.started(cur.key, System.currentTimeMillis() - loadStart[0])
+        }
+        fx.apply(engine.audioSession(), Prefs.s.nightMode, Prefs.s.leveling)
+    }
     listener.onErr = { code, unsupported ->
         val r = cur
+        val alt = if (isLive && Prefs.s.altSource && retries >= 3) currentLive()?.let { ch ->
+            Alternatives.find(vis?.allLive ?: emptyList(), ch) { Quality["live:${it.id}"].score }.firstOrNull { it.id !in triedAlt }
+        } else null
         when {
             engineKind == "exo" && unsupported && !triedHls && !r.url.contains(".m3u8") -> { triedHls = true; engine.load(r, forceHls = true) }
             engineKind == "exo" && Prefs.s.engine == "auto" && (unsupported || retries >= 2) -> {
                 Prefs.update { s -> s.copy(vlcKeys = (listOf(r.key) + (s.vlcKeys - r.key)).take(300)) }
                 showHint(ctx.getString(R.string.player_switch_vlc))
                 engineKind = "vlc"
+            }
+            alt != null -> {
+                // same channel from another source (FHD → HD → SD / backup feed)
+                Quality.failed(r.key)
+                triedAlt += alt.id
+                showHint(ctx.getString(R.string.player_alt_source, vis?.liveName(alt) ?: alt.name))
+                playLive(alt)
             }
             isLive && retries < 5 -> {
                 retries++
@@ -289,13 +326,14 @@ fun PlayerScreen(req: PlayRequest) {
                     engine.load(cur, forceHls = triedHls)
                 }
             }
-            else -> error = code
+            else -> { Quality.failed(r.key); error = code }
         }
     }
 
     // (re)load on a new request or engine
     LaunchedEffect(engine, req) {
         error = null; retries = 0; triedHls = false; epgNow = null; epgNext = null; sessionBytes = 0
+        loadStart[0] = System.currentTimeMillis(); loadStart[1] = 0L; pausedAt = 0L; behindMs = 0L
         engine.setResize(resizeIdx)
         runCatching { engine.load(req) }.onFailure { error = it.message }
         showInfo()
@@ -323,10 +361,24 @@ fun PlayerScreen(req: PlayRequest) {
         if (digits.isEmpty()) return@LaunchedEffect
         delay(1500)
         val n = digits.toIntOrNull()
+        val zero = digits == "0"
         digits = ""
+        if (zero) { lastChannel(); return@LaunchedEffect }
         val target = n?.let { num -> queue.firstOrNull { it.num == num } ?: vis?.allLive?.firstOrNull { it.num == num } }
         if (target != null) playLive(target) else showHint("—")
     }
+
+    val behindMsBase = remember { longArrayOf(0L) }
+    fun togglePause() {
+        if (engine.isPlaying()) {
+            engine.pause()
+            if (isLive && !cur.isCatchup) pausedAt = System.currentTimeMillis()
+        } else {
+            if (pausedAt > 0) { behindMsBase[0] += System.currentTimeMillis() - pausedAt; behindMs = behindMsBase[0]; pausedAt = 0 }
+            engine.play()
+        }
+    }
+    fun backToLive() { behindMsBase[0] = 0; behindMs = 0; pausedAt = 0; engine.load(cur) }
 
     // ticker: progress, stats, auto-hide
     LaunchedEffect(engine) {
@@ -360,7 +412,8 @@ fun PlayerScreen(req: PlayRequest) {
                 lastBytes = st.bytes; lastT = now
                 stats = st
             }
-            if (++tick % 20 == 0) saveResume()
+            if (++tick % 20 == 0) { saveResume(); if (isLive && rateKbps > 0) Quality.rate(cur.key, rateKbps) }
+            if (pausedAt > 0) behindMs = System.currentTimeMillis() - pausedAt + behindMsBase[0]
             val idle = now - lastInput
             if (controls && isPlaying && idle > 6000 && dialog == null) controls = false
             if (overlay && idle > 15000 && dialog == null) overlay = false
@@ -381,6 +434,8 @@ fun PlayerScreen(req: PlayRequest) {
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose {
             saveResume()
+            fx.release()
+            Quality.save()
             lifecycleOwner.lifecycle.removeObserver(obs)
             (ctx as? MainActivity)?.setBarsHidden(false)
             PlayerState.playing = false
@@ -425,7 +480,7 @@ fun PlayerScreen(req: PlayRequest) {
                 val d = digitKeys[e.key]
                 when {
                     e.key == Key.MediaPlayPause || e.key == Key.MediaPlay || e.key == Key.MediaPause || e.key == Key.Spacebar -> {
-                        if (engine.isPlaying()) engine.pause() else engine.play(); true
+                        togglePause(); true
                     }
                     e.key == Key.ChannelUp || e.key == Key.PageUp -> { zap(-1); true }
                     e.key == Key.ChannelDown || e.key == Key.PageDown -> { zap(1); true }
@@ -494,6 +549,12 @@ fun PlayerScreen(req: PlayRequest) {
             )
         }
 
+        if (isLive && behindMs > 2000 && !UiEnv.inPip) {
+            Text(
+                "⏸ -" + fmtDur(behindMs), color = Color.White, fontSize = 14.sp, style = com.mohdev.faiptv.ui.tabular,
+                modifier = Modifier.align(Alignment.TopStart).padding(20.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xCC000000)).padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
         if (digits.isNotEmpty()) {
             Text(
                 digits, color = Color.White, fontSize = 44.sp, fontWeight = FontWeight.Bold,
@@ -543,7 +604,9 @@ fun PlayerScreen(req: PlayRequest) {
                 AnimatedVisibility(controls && !overlay, enter = fadeIn(), exit = fadeOut()) {
                     Controls(
                         req = cur, isVod = isVod, isPlaying = isPlaying, pos = pos, dur = dur, engineName = engine.name, poke = ::poke,
-                        onPlayPause = { if (engine.isPlaying()) engine.pause() else engine.play() },
+                        onPlayPause = { togglePause() },
+                        behindMs = behindMs, onLive = { backToLive() }, onLast = { lastChannel() },
+                        onMulti = { cur.liveId?.let { id -> Nav.push(Route.Multi(listOf(id) + queue.map { it.id }.filter { it != id }.take(1))) } },
                         onSeek = { engine.seekTo(it) },
                         onZap = ::zap,
                         onChannels = { controls = false; overlay = true },
@@ -647,27 +710,31 @@ private fun InfoBar(
             com.mohdev.faiptv.ui.ClockView(Color.White, 18 * scale)
         }
         if (Prefs.s.infoTech && stats != null) {
-            val chips = buildList {
-                if (stats.width > 0) add("${stats.width}×${stats.height}")
-                qualityLabel(stats.height).takeIf { it.isNotBlank() }?.let { add(it) }
-                if (stats.fps > 0) add(String.format(Locale.US, "%.0f fps", stats.fps))
-                if (stats.vcodec.isNotBlank()) add(stats.vcodec)
-                if (stats.acodec.isNotBlank()) add(stats.acodec + when (stats.channels) { 6 -> " 5.1"; 8 -> " 7.1"; 2 -> " 2.0"; 1 -> " 1.0"; else -> "" })
+            // fixed slots and widths: nothing jumps while the numbers change
+            val dash = "—"
+            val chips = buildList<Pair<String, Int>> {
+                add((if (stats.width > 0) "${stats.width}×${stats.height}" else dash) to 86)
+                add(qualityLabel(stats.height).ifBlank { dash } to 44)
+                add((if (stats.fps > 0) String.format(Locale.US, "%.0f fps", stats.fps) else dash) to 56)
+                add(stats.vcodec.ifBlank { dash } to 60)
+                add((if (stats.acodec.isNotBlank()) stats.acodec + when (stats.channels) { 6 -> " 5.1"; 8 -> " 7.1"; 2 -> " 2.0"; 1 -> " 1.0"; else -> "" } else dash) to 76)
                 if (Prefs.s.showSpeeds) {
-                    add(String.format(Locale.US, "▼ %5.1f Mb/s", rateKbps / 1000f))
-                    add(String.format(Locale.US, "▲ %5.0f kb/s", txKbps.toFloat()))
-                    if (stats.netEstimateKbps > 0) add(String.format(Locale.US, "⇅ %5.1f Mb/s", stats.netEstimateKbps / 1000f))
+                    add(String.format(Locale.US, "▼ %.1f Mb/s", rateKbps / 1000f) to 96)
+                    add(String.format(Locale.US, "▲ %d kb/s", txKbps) to 88)
+                    add((if (stats.netEstimateKbps > 0) String.format(Locale.US, "⇅ %.1f Mb/s", stats.netEstimateKbps / 1000f) else "⇅ $dash") to 96)
                 }
-                if (sessionBytes > 0) add(fmtSize(sessionBytes))
-                if (stats.dropped > 0) add("⚠ ${stats.dropped}")
-                add(engine)
+                add((if (sessionBytes > 0) fmtSize(sessionBytes) else dash) to 70)
+                add(engine to 76)
+                if (stats.dropped > 0) add("⚠ ${stats.dropped}" to 56)
             }
             Row(Modifier.padding(top = (8 * scale).dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                chips.forEach {
-                    Text(
-                        it, color = Color.White, fontSize = (11 * scale).sp, maxLines = 1, style = com.mohdev.faiptv.ui.tabular,
-                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0x33FFFFFF)).padding(horizontal = 7.dp, vertical = 2.dp),
-                    )
+                chips.forEach { (text, w) ->
+                    Box(
+                        Modifier.width((w * scale).dp).clip(RoundedCornerShape(6.dp)).background(Color(0x33FFFFFF)).padding(vertical = 2.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(text, color = Color.White, fontSize = (11 * scale).sp, maxLines = 1, style = com.mohdev.faiptv.ui.tabular)
+                    }
                 }
             }
         }
@@ -746,6 +813,7 @@ private fun Controls(
     onPlayPause: () -> Unit, onSeek: (Long) -> Unit, onZap: (Int) -> Unit, onChannels: () -> Unit, onNext: () -> Unit, hasNext: Boolean,
     onDialog: (String) -> Unit, onAspect: () -> Unit, onEngine: () -> Unit, onPip: () -> Unit, onExternal: () -> Unit,
     onRecord: () -> Unit, onInfo: () -> Unit, onBack: () -> Unit, onGuide: () -> Unit, tech: String,
+    behindMs: Long, onLive: () -> Unit, onLast: () -> Unit, onMulti: () -> Unit,
 ) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { playFocus.requestFocus() } }
@@ -768,7 +836,9 @@ private fun Controls(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(fmtDur(if (dragging) dragValue.toLong() else pos) + " / " + fmtDur(dur), color = Color.White, fontSize = 13.sp, style = com.mohdev.faiptv.ui.tabular)
                 Spacer(Modifier.weight(1f))
-                Text(tech, color = Color(0xFFCBD5E1), fontSize = 12.sp, maxLines = 1, style = com.mohdev.faiptv.ui.tabular)
+                Box(Modifier.width(380.dp), contentAlignment = Alignment.Center) {
+                    Text(tech, color = Color(0xFFCBD5E1), fontSize = 12.sp, maxLines = 1, style = com.mohdev.faiptv.ui.tabular)
+                }
                 Spacer(Modifier.width(12.dp))
                 Text("-" + fmtDur(dur - pos), color = Color.White, fontSize = 13.sp, style = com.mohdev.faiptv.ui.tabular)
             }
@@ -789,6 +859,9 @@ private fun Controls(
             item { CtlButton(Icons.Default.HighQuality, stringResource(R.string.player_video), poke, { onDialog("quality") }, label = true) }
             item { CtlButton(Icons.Default.AspectRatio, stringResource(R.string.player_aspect), poke, onAspect, label = true) }
             if (isVod) item { CtlButton(Icons.Default.Speed, stringResource(R.string.player_speed), poke, { onDialog("speed") }, label = true) }
+            if (isLive && behindMs > 2000) item { CtlButton(Icons.Default.SkipNext, stringResource(R.string.player_back_live) + " (-" + fmtDur(behindMs) + ")", poke, onLive, label = true, tint = Brand.Live) }
+            if (isLive) item { CtlButton(Icons.Default.History, stringResource(R.string.player_last), poke, onLast, label = true) }
+            if (isLive) item { CtlButton(Icons.Default.GridView, stringResource(R.string.player_multi), poke, onMulti, label = true) }
             if (isLive) item { CtlButton(Icons.Default.Info, stringResource(R.string.player_info), poke, onInfo, label = true) }
             if (isLive) item { CtlButton(Icons.Default.CalendarViewWeek, stringResource(R.string.guide), poke, onGuide, label = true) }
             if (isLive && !req.isCatchup) {
@@ -816,7 +889,8 @@ private fun CtlButton(
     big: Boolean = false, focus: FocusRequester? = null, label: Boolean = false, tint: Color = Color.White,
 ) {
     var focused by remember { mutableStateOf(false) }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
+    // fixed width: the label under the focused button must not push the other buttons around
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(if (big) 76.dp else 64.dp)) {
         IconButton(
             onClick = { poke(); onClick() },
             modifier = Modifier
@@ -828,7 +902,10 @@ private fun CtlButton(
         ) {
             Icon(icon, desc, tint = if (focused) Color.Black else tint, modifier = Modifier.size(if (big) 34.dp else 24.dp))
         }
-        Text(if (label && focused) desc else " ", color = Color.White, fontSize = 11.sp, maxLines = 1)
+        Text(
+            if (label && focused) desc else " ", color = Color.White, fontSize = 11.sp, maxLines = 1,
+            overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -284,5 +284,24 @@
     <string name="rem_starts">يبدأ %1$s الساعة %2$s</string>
     <string name="rem_watch">شاهد الآن</string>
     <string name="acc_test">اختبار الاتصال</string>
+    <string name="player_alt_source">التحويل إلى مصدر بديل: %1$s</string>
+    <string name="player_back_live">العودة للبث الحي</string>
+    <string name="player_last">القناة السابقة</string>
+    <string name="player_multi">عرض متعدد</string>
+    <string name="multi_pick">اختر قناة</string>
+    <string name="set_text_size">حجم الخط</string>
+    <string name="text_m">عادي</string>
+    <string name="text_l">كبير</string>
+    <string name="text_xl">كبير جداً</string>
+    <string name="set_lang_filter">لغات / دول القنوات</string>
+    <string name="lang_all">الكل</string>
+    <string name="lang_filter_hint">إظهار اللغات المختارة فقط. بدون اختيار = الكل. الرقم هو عدد المجموعات لكل لغة.</string>
+    <string name="lang_keep_unknown">إبقاء العناصر بدون رمز لغة</string>
+    <string name="set_live_pause">إيقاف البث المباشر مؤقتاً (ذاكرة)</string>
+    <string name="set_alt_source">مصدر بديل تلقائي (FHD → HD → SD)</string>
+    <string name="set_night">الوضع الليلي (تخفيف المشاهد العالية)</string>
+    <string name="set_leveling">توحيد الصوت بين القنوات</string>
+    <string name="set_passthrough">تمرير Dolby / DTS (VLC، مضخم)</string>
+    <string name="q_report">الجودة: %1$d/100 · بدء %2$s ث · تقطيع %3$d · أخطاء %4$d · %5$s</string>
     <string name="privacy_text">الخصوصية: لا تتبّع ولا تحليلات ولا إعلانات. الحسابات والمفضلة والسجل تُحفظ على هذا الجهاز فقط. سجل الأخطاء يحذف كلمات المرور وعناوين IP.</string>
 </resources>

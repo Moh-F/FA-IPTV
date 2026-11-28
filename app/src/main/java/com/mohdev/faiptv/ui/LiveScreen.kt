@@ -265,7 +265,13 @@ fun LiveScreen(wide: Boolean) {
             actions += stringResource(R.string.action_record) to { startRecording(ctx, acc, ch) }
         }
         actions += stringResource(R.string.action_external) to { External.open(ctx, Repo.playLive(acc, ch)) }
-        ActionMenu(vis.liveName(ch), actions) { menuFor = null }
+        actions += stringResource(R.string.player_multi) to { Nav.push(Route.Multi(listOf(ch.id) + channels.map { it.id }.filter { it != ch.id }.take(1))) }
+        val q = com.mohdev.faiptv.data.Quality[key]
+        val title = if (q.plays == 0) vis.liveName(ch) else vis.liveName(ch) + "\n" + stringResource(
+            R.string.q_report, q.score, String.format(java.util.Locale.US, "%.1f", q.startMs / 1000f), q.rebuffers, q.failures,
+            if (q.kbps > 0) String.format(java.util.Locale.US, "%.1f Mb/s", q.kbps / 1000f) else "—",
+        )
+        ActionMenu(title, actions) { menuFor = null }
     }
     catMenu?.let { g ->
         val actions = mutableListOf<Pair<String, () -> Unit>>()

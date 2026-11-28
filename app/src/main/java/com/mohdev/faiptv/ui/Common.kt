@@ -411,3 +411,30 @@ fun RefreshBadge(modifier: Modifier = Modifier) {
         )
     }
 }
+
+/** Several choices (checkboxes). */
+@Composable
+fun MultiChoiceDialog(title: String, options: List<Pair<String, String>>, selected: Set<String>, header: (@Composable () -> Unit)? = null, onDismiss: () -> Unit, onSave: (Set<String>) -> Unit) {
+    var sel by remember { mutableStateOf(selected) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                header?.invoke()
+                LazyColumn(Modifier.height(360.dp)) {
+                    items(options) { (k, label) ->
+                        FocusCard(onClick = { sel = if (k in sel) sel - k else sel + k }, modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp), color = Color.Transparent, zoom = 1f) {
+                            Row(Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.Checkbox(k in sel, null)
+                                Text(label)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(sel); onDismiss() }) { Text(stringResource(R.string.action_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
+}

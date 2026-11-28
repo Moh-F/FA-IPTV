@@ -28,6 +28,7 @@ sealed interface Route {
     data class Sub(val tab: Tab) : Route
     data class KidsAllowed(val profileId: String) : Route
     data class Guide(val group: String) : Route
+    data class Multi(val liveIds: List<String>) : Route
 }
 
 /** App-wide UI state: tab, back stack, dialogs. */

@@ -285,5 +285,24 @@
     <string name="rem_starts">%1$s starts at %2$s</string>
     <string name="rem_watch">Watch now</string>
     <string name="acc_test">Test connection</string>
+    <string name="player_alt_source">Switching to another source: %1$s</string>
+    <string name="player_back_live">Back to live</string>
+    <string name="player_last">Last channel</string>
+    <string name="player_multi">Multi-view</string>
+    <string name="multi_pick">Choose channel</string>
+    <string name="set_text_size">Text size</string>
+    <string name="text_m">Normal</string>
+    <string name="text_l">Large</string>
+    <string name="text_xl">Extra large</string>
+    <string name="set_lang_filter">Channel languages / countries</string>
+    <string name="lang_all">All</string>
+    <string name="lang_filter_hint">Show only the selected languages. Nothing selected = everything. The number is how many groups each has.</string>
+    <string name="lang_keep_unknown">Keep entries without a language tag</string>
+    <string name="set_live_pause">Pause live TV (memory)</string>
+    <string name="set_alt_source">Automatic alternative source (FHD → HD → SD)</string>
+    <string name="set_night">Night mode (softer loud scenes)</string>
+    <string name="set_leveling">Even volume between channels</string>
+    <string name="set_passthrough">Dolby / DTS passthrough (VLC, receiver)</string>
+    <string name="q_report">Quality: %1$d/100 · start %2$s s · stalls %3$d · errors %4$d · %5$s</string>
     <string name="privacy_text">Privacy: no tracking, no analytics, no ads. Accounts, favorites and history are stored only on this device. The error log removes passwords and IP addresses.</string>
 </resources>
