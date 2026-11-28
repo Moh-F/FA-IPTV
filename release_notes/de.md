@@ -1,7 +1,1 @@
-- Sender, Filme und Serien aktualisieren sich im Hintergrund (alle 1/3/6/12/24 Std.) mit kleiner, anpassbarer Fortschrittsanzeige
-- Lösung für Server, die das DNS des Anbieters nicht findet (UnknownHostException): automatisches verschlüsseltes DNS
-- Programmführer als Raster, Erinnerungen und automatischer Senderstart zu Datum und Uhrzeit
-- Datum und Uhrzeit im deutschen Format im Player (24/12 Std., Sekunden), ruhige Ziffern, Download- und Upload-Tempo
-- Anpassung der Bildwiederholrate 50/60 Hz für flüssigere Bewegung
-- Gruppen, Sender und Filme nach oben/unten verschieben
-- Filme und Serien: längeres Vorausladen, dünne Fortschrittslinie, Dauer/Auflösung/Tempo in der Leiste
+- Sicherheit: unnötige Vollbild-Benachrichtigungsberechtigung entfernt

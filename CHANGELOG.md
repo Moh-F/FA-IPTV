@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+- Removed USE_FULL_SCREEN_INTENT (Play Protect heuristics); reminders use a normal high-priority notification
+- USE_EXACT_ALARM (reserved for alarm/calendar apps) replaced by SCHEDULE_EXACT_ALARM with inexact fallback
+
 ## 1.2.0
 - Background library refresh every 1/3/6/12/24 h with a corner progress badge (position, size, colour, opacity, hide)
 - SmartDns: system DNS with automatic DNS-over-HTTPS fallback (Cloudflare, Google, Quad9) or a fixed choice; fixes UnknownHostException for servers blocked by provider DNS; VLC gets the resolved IP

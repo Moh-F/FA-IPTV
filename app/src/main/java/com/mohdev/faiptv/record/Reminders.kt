@@ -74,7 +74,6 @@ object Reminders {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(open)
-            .apply { if (r.open) setFullScreenIntent(open, true) }
             .build()
         runCatching { nm.notify(r.id.hashCode(), n) }
     }
