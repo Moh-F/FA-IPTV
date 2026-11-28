@@ -65,7 +65,7 @@ class VlcEngine(ctx: Context, private val l: EngineListener) : Engine {
     }
 
     override fun load(r: PlayRequest, forceHls: Boolean) {
-        val m = Media(lib, Uri.parse(r.url))
+        val m = Media(lib, Uri.parse(com.mohdev.faiptv.data.SmartDns.ipUrl(r.url)))
         m.setHWDecoderEnabled(true, false)
         m.addOption(":http-user-agent=" + Net.userAgent(r.userAgent))
         if (r.referrer.isNotBlank()) m.addOption(":http-referrer=" + r.referrer)

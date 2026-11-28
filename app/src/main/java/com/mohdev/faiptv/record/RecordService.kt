@@ -71,8 +71,8 @@ class RecordService : Service() {
         }
 
         /** Schedules a programme recording with an exact alarm (1 min before start, 2 min after end). */
-        fun schedule(ctx: Context, rec: ScheduledRec) {
-            Prefs.addScheduled(rec)
+        fun schedule(ctx: Context, rec: ScheduledRec, store: Boolean = true) {
+            if (store) Prefs.addScheduled(rec)
             val am = ctx.getSystemService(AlarmManager::class.java)
             val pi = alarmIntent(ctx, rec.id)
             val at = (rec.start - 60_000).coerceAtLeast(System.currentTimeMillis() + 2_000)

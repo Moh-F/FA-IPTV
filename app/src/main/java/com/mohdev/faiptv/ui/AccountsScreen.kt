@@ -229,6 +229,7 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
     val errEmpty = stringResource(R.string.acc_err_empty)
     val errStatus = stringResource(R.string.acc_err_status, "%s")
     val detected = stringResource(R.string.acc_detected)
+    val errDns = stringResource(R.string.acc_err_dns)
 
     fun save() {
         error = null
@@ -271,6 +272,9 @@ fun AccountEditScreen(existing: Account?, type0: AccountType) {
                 }
             } catch (e: Net.HttpError) {
                 error = "$errNet (HTTP ${e.code})"
+            } catch (e: java.net.UnknownHostException) {
+                AppLog.e("acc", "host not found", e)
+                error = errDns
             } catch (e: Exception) {
                 AppLog.e("acc", "save failed", e)
                 error = "$errNet (${e.javaClass.simpleName})"

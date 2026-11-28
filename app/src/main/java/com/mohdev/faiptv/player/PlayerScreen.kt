@@ -39,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.CalendarViewWeek
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
@@ -189,6 +190,7 @@ fun PlayerScreen(req: PlayRequest) {
     var stats by remember { mutableStateOf(Stats()) }
     var rateKbps by remember { mutableIntStateOf(0) }
     var sessionBytes by remember { mutableLongStateOf(0L) }
+    var txKbps by remember { mutableIntStateOf(0) }
     var epgNow by remember { mutableStateOf<Programme?>(null) }
     var epgNext by remember { mutableStateOf<Programme?>(null) }
     var zapTarget by remember { mutableStateOf<Live?>(null) }
@@ -215,8 +217,8 @@ fun PlayerScreen(req: PlayRequest) {
     }
     val engine: Engine = remember(engineKind) {
         if (engineKind == "vlc") runCatching { VlcEngine(ctx, listener) as Engine }.getOrElse {
-            AppLog.e("player", "VLC engine failed", it); ExoEngine(ctx, listener)
-        } else ExoEngine(ctx, listener)
+            AppLog.e("player", "VLC engine failed", it); ExoEngine(ctx, listener, isVod)
+        } else ExoEngine(ctx, listener, isVod)
     }
     DisposableEffect(engine) { onDispose { engine.release() } }
 
@@ -331,6 +333,9 @@ fun PlayerScreen(req: PlayRequest) {
         var tick = 0
         var lastBytes = 0L
         var lastT = System.currentTimeMillis()
+        val uid = android.os.Process.myUid()
+        var lastRx = android.net.TrafficStats.getUidRxBytes(uid)
+        var lastTx = android.net.TrafficStats.getUidTxBytes(uid)
         while (true) {
             pos = engine.position()
             dur = engine.duration()
@@ -338,9 +343,20 @@ fun PlayerScreen(req: PlayRequest) {
             if (tick % 2 == 0) {
                 val st = engine.stats()
                 val dt = (now - lastT).coerceAtLeast(1)
-                val delta = (st.bytes - lastBytes).coerceAtLeast(0)
-                if (lastBytes > 0) rateKbps = (delta * 8 / dt).toInt()
-                if (st.bytes >= lastBytes) sessionBytes += delta
+                val rx = android.net.TrafficStats.getUidRxBytes(uid)
+                val tx = android.net.TrafficStats.getUidTxBytes(uid)
+                if (rx >= 0 && lastRx >= 0) {
+                    // whole app traffic (works for both engines): receive and send speed
+                    val d = (rx - lastRx).coerceAtLeast(0)
+                    rateKbps = (d * 8 / dt).toInt()
+                    txKbps = ((tx - lastTx).coerceAtLeast(0) * 8 / dt).toInt()
+                    sessionBytes += d
+                } else {
+                    val delta = (st.bytes - lastBytes).coerceAtLeast(0)
+                    if (lastBytes > 0) rateKbps = (delta * 8 / dt).toInt()
+                    if (st.bytes >= lastBytes) sessionBytes += delta
+                }
+                lastRx = rx; lastTx = tx
                 lastBytes = st.bytes; lastT = now
                 stats = st
             }
@@ -370,6 +386,15 @@ fun PlayerScreen(req: PlayRequest) {
             PlayerState.playing = false
         }
     }
+
+    // match the display refresh rate to the video (50/60 Hz)
+    val fpsKnown = stats.fps
+    LaunchedEffect(fpsKnown, req.key) {
+        if (!Prefs.s.afr) return@LaunchedEffect
+        val fps = if (fpsKnown > 0) fpsKnown else if (isLive) Prefs.s.afrFallback.toFloat() else 0f
+        (ctx as? Activity)?.let { DisplayRate.match(it, fps) }
+    }
+    DisposableEffect(Unit) { onDispose { (ctx as? Activity)?.let { DisplayRate.reset(it) } } }
 
     LaunchedEffect(controls, overlay) { if (!controls && !overlay) runCatching { rootFocus.requestFocus() } }
 
@@ -506,7 +531,7 @@ fun PlayerScreen(req: PlayRequest) {
                 InfoBar(
                     ch = shownLive, title = if (shownLive != null && vis != null) vis.liveName(shownLive) else cur.title,
                     sub = cur.subtitle, now = if (zapTarget == null) epgNow else null, next = if (zapTarget == null) epgNext else null,
-                    stats = if (zapTarget == null) stats else null, rateKbps = rateKbps, sessionBytes = sessionBytes,
+                    stats = if (zapTarget == null) stats else null, rateKbps = rateKbps, txKbps = txKbps, sessionBytes = sessionBytes,
                     engine = engine.name, opacity = opacity, scale = scale, catchup = cur.isCatchup,
                 )
             }
@@ -536,7 +561,18 @@ fun PlayerScreen(req: PlayRequest) {
                         },
                         onInfo = { if (System.currentTimeMillis() < infoUntil) infoUntil = 0 else showInfo() },
                         onBack = { Nav.pop() },
+                        onGuide = { Nav.push(Route.Guide(Nav.liveGroup)) },
+                        tech = buildList {
+                            if (stats.width > 0) add("${stats.width}×${stats.height} ${qualityLabel(stats.height)}")
+                            if (Prefs.s.showSpeeds) { add(String.format(Locale.US, "▼ %.1f Mb/s", rateKbps / 1000f)); add(String.format(Locale.US, "▲ %.0f kb/s", txKbps.toFloat())) }
+                            add(engine.name)
+                        }.joinToString("  ·  "),
                     )
+                }
+            }
+            if (isVod && dur > 0 && !controls && Prefs.s.vodMiniBar) {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp).background(Color(0x33FFFFFF))) {
+                    Box(Modifier.fillMaxHeight().fillMaxWidth((pos.toFloat() / dur).coerceIn(0f, 1f)).background(Brand.Cyan.copy(alpha = 0.8f)))
                 }
             }
             if (isLive && vis != null) {
@@ -567,7 +603,7 @@ fun PlayerScreen(req: PlayRequest) {
 /** Bottom (or top) bar while zapping: channel, programme, real picture/stream data. */
 @Composable
 private fun InfoBar(
-    ch: Live?, title: String, sub: String, now: Programme?, next: Programme?, stats: Stats?, rateKbps: Int, sessionBytes: Long,
+    ch: Live?, title: String, sub: String, now: Programme?, next: Programme?, stats: Stats?, rateKbps: Int, txKbps: Int, sessionBytes: Long,
     engine: String, opacity: Float, scale: Float, catchup: Boolean,
 ) {
     Column(
@@ -608,7 +644,7 @@ private fun InfoBar(
                 }
                 next?.let { Text("${stringResource(R.string.epg_next)}: ${fmtTime(it.start)}  ${it.title}", color = Color(0xFF9FB0C8), fontSize = (12 * scale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
-            Text(fmtTime(System.currentTimeMillis()), color = Color.White, fontSize = (18 * scale).sp)
+            com.mohdev.faiptv.ui.ClockView(Color.White, 18 * scale)
         }
         if (Prefs.s.infoTech && stats != null) {
             val chips = buildList {
@@ -617,8 +653,11 @@ private fun InfoBar(
                 if (stats.fps > 0) add(String.format(Locale.US, "%.0f fps", stats.fps))
                 if (stats.vcodec.isNotBlank()) add(stats.vcodec)
                 if (stats.acodec.isNotBlank()) add(stats.acodec + when (stats.channels) { 6 -> " 5.1"; 8 -> " 7.1"; 2 -> " 2.0"; 1 -> " 1.0"; else -> "" })
-                if (rateKbps > 0) add(String.format(Locale.US, "▼ %.1f Mb/s", rateKbps / 1000f))
-                if (stats.netEstimateKbps > 0) add(String.format(Locale.US, "⇅ %.1f Mb/s", stats.netEstimateKbps / 1000f))
+                if (Prefs.s.showSpeeds) {
+                    add(String.format(Locale.US, "▼ %5.1f Mb/s", rateKbps / 1000f))
+                    add(String.format(Locale.US, "▲ %5.0f kb/s", txKbps.toFloat()))
+                    if (stats.netEstimateKbps > 0) add(String.format(Locale.US, "⇅ %5.1f Mb/s", stats.netEstimateKbps / 1000f))
+                }
                 if (sessionBytes > 0) add(fmtSize(sessionBytes))
                 if (stats.dropped > 0) add("⚠ ${stats.dropped}")
                 add(engine)
@@ -626,7 +665,7 @@ private fun InfoBar(
             Row(Modifier.padding(top = (8 * scale).dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 chips.forEach {
                     Text(
-                        it, color = Color.White, fontSize = (11 * scale).sp, maxLines = 1,
+                        it, color = Color.White, fontSize = (11 * scale).sp, maxLines = 1, style = com.mohdev.faiptv.ui.tabular,
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0x33FFFFFF)).padding(horizontal = 7.dp, vertical = 2.dp),
                     )
                 }
@@ -652,7 +691,12 @@ private fun ChannelOverlay(vis: Vis, currentId: String?, opacity: Float, poke: (
         runCatching { chFocus.req(channels.getOrNull(idx)?.id ?: "").requestFocus() }
     }
     val bg = Color(0xFF0B1220).copy(alpha = opacity)
-    Row(Modifier.fillMaxHeight().background(bg)) {
+    Column(Modifier.fillMaxHeight().background(bg)) {
+    Row(Modifier.width(540.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(R.string.player_channels), color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        com.mohdev.faiptv.ui.ClockView(Color.White, 16f)
+    }
+    Row(Modifier.weight(1f)) {
         LazyColumn(
             Modifier.width(210.dp).fillMaxHeight().enterAtFirstVisible(gState, gFocus),
             state = gState, contentPadding = PaddingValues(8.dp),
@@ -693,6 +737,7 @@ private fun ChannelOverlay(vis: Vis, currentId: String?, opacity: Float, poke: (
             }
         }
     }
+    }
 }
 
 @Composable
@@ -700,7 +745,7 @@ private fun Controls(
     req: PlayRequest, isVod: Boolean, isPlaying: Boolean, pos: Long, dur: Long, engineName: String, poke: () -> Unit,
     onPlayPause: () -> Unit, onSeek: (Long) -> Unit, onZap: (Int) -> Unit, onChannels: () -> Unit, onNext: () -> Unit, hasNext: Boolean,
     onDialog: (String) -> Unit, onAspect: () -> Unit, onEngine: () -> Unit, onPip: () -> Unit, onExternal: () -> Unit,
-    onRecord: () -> Unit, onInfo: () -> Unit, onBack: () -> Unit,
+    onRecord: () -> Unit, onInfo: () -> Unit, onBack: () -> Unit, onGuide: () -> Unit, tech: String,
 ) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { playFocus.requestFocus() } }
@@ -720,10 +765,12 @@ private fun Controls(
                 valueRange = 0f..dur.toFloat(),
                 colors = SliderDefaults.colors(thumbColor = Brand.Cyan, activeTrackColor = Brand.Cyan, inactiveTrackColor = Color(0x55FFFFFF)),
             )
-            Row(Modifier.fillMaxWidth()) {
-                Text(fmtDur(if (dragging) dragValue.toLong() else pos), color = Color.White, fontSize = 13.sp)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(fmtDur(if (dragging) dragValue.toLong() else pos) + " / " + fmtDur(dur), color = Color.White, fontSize = 13.sp, style = com.mohdev.faiptv.ui.tabular)
                 Spacer(Modifier.weight(1f))
-                Text("-" + fmtDur(dur - pos), color = Color.White, fontSize = 13.sp)
+                Text(tech, color = Color(0xFFCBD5E1), fontSize = 12.sp, maxLines = 1, style = com.mohdev.faiptv.ui.tabular)
+                Spacer(Modifier.width(12.dp))
+                Text("-" + fmtDur(dur - pos), color = Color.White, fontSize = 13.sp, style = com.mohdev.faiptv.ui.tabular)
             }
         }
         LazyRow(
@@ -743,6 +790,7 @@ private fun Controls(
             item { CtlButton(Icons.Default.AspectRatio, stringResource(R.string.player_aspect), poke, onAspect, label = true) }
             if (isVod) item { CtlButton(Icons.Default.Speed, stringResource(R.string.player_speed), poke, { onDialog("speed") }, label = true) }
             if (isLive) item { CtlButton(Icons.Default.Info, stringResource(R.string.player_info), poke, onInfo, label = true) }
+            if (isLive) item { CtlButton(Icons.Default.CalendarViewWeek, stringResource(R.string.guide), poke, onGuide, label = true) }
             if (isLive && !req.isCatchup) {
                 item { CtlButton(Icons.Default.FiberManualRecord, stringResource(R.string.action_record), poke, onRecord, label = true, tint = Brand.Live) }
                 if (acc != null && req.liveId != null && !Prefs.isKids) item {

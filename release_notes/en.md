@@ -1,7 +1,7 @@
-- Profiles like YouTube, each with its own favourites, order and history; kids profile limited to what parents allow
-- Several named favourites lists; move, sort, rename and hide channels and categories
-- Encrypted sync between devices over the home network and GitHub
-- Pro player: zap with the arrows even while buttons are visible, transparent channel list over the picture, info bar (real resolution, speed, data used), channel number entry
-- Optional VLC engine (de-interlacing, every format) with automatic fallback; YouTube-like quality selection
-- New calm colours (3 styles), Western digits in Arabic
-- Add accounts from the phone via QR code, fixed account buttons, faster lists and channel start
+- Channels, films and series update in the background (every 1/3/6/12/24 h) with a small, customisable progress indicator
+- Fix for servers the provider's DNS cannot find (UnknownHostException): automatic encrypted DNS
+- Grid programme guide, programme reminders and automatic channel start at a chosen date and time
+- Date and time in German format in the player (24/12 h, seconds), steady digits, download and upload speed
+- Display refresh rate matching 50/60 Hz for smoother motion
+- Move groups, channels and films up/down, to top/bottom
+- Films and series: longer read-ahead, thin progress line, duration/resolution/speed in the bar

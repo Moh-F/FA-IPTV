@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+- Background library refresh every 1/3/6/12/24 h with a corner progress badge (position, size, colour, opacity, hide)
+- SmartDns: system DNS with automatic DNS-over-HTTPS fallback (Cloudflare, Google, Quad9) or a fixed choice; fixes UnknownHostException for servers blocked by provider DNS; VLC gets the resolved IP
+- Grid EPG (channels × time, shift by hour, groups), programme actions: watch, replay, remind, open at start, record
+- Reminders and automatic channel start (exact alarms, re-armed after reboot, in-app dialog or notification)
+- Player: German date/time (24/12 h, seconds, formats), tabular digits, real receive/send speed (TrafficStats), clock in channel list
+- Automatic display refresh rate (50/60 Hz) with fallback for live TV
+- Move to top/bottom for groups, channels, films and series; order inside film/series categories
+- VOD: read-ahead up to 4 min, back buffer, thin progress line, time/resolution/speeds in the control bar
+
 ## 1.1.0
 - Profiles (YouTube-like picker at start), optional profile PIN, kids profile with a parents' whitelist (categories and single channels)
 - Several named favourites lists per profile and account; move/sort lists and channels; rename and hide channels and categories; reset order

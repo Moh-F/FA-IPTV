@@ -101,11 +101,11 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
     var rename by remember { mutableStateOf<Pair<String, String>?>(null) }
     val allCats = remember(cats) { listOf(Category(CAT_FAV, ""), Category(CAT_ALL, "")) + cats }
     val counts = remember(all) { all.groupingBy { it.cat }.eachCount() }
-    val shown = remember(all, cat, sort, locked, favs) {
+    val shown = remember(all, cat, sort, locked, favs, Prefs.pd) {
         val base = when (cat) {
             CAT_ALL -> all.filter { it.cat !in locked }
             CAT_FAV -> all.filter { "$kind:${it.id}" in favs }
-            else -> all.filter { it.cat == cat }
+            else -> Prefs.ordered(acc, "$kind:$cat", all.filter { it.cat == cat }) { it.id }
         }
         when (sort) {
             1 -> base.sortedByDescending { it.added }
@@ -187,11 +187,20 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
     menuFor?.let { v ->
         val key = "$kind:${v.id}"
         val fav = key in favs
-        ActionMenu(v.name, listOf(
+        val inCat = !cat.startsWith("*") && sort == 0
+        val ids = shown.map { it.id }
+        val acts = mutableListOf<Pair<String, () -> Unit>>(
             stringResource(if (fav) R.string.action_fav_remove else R.string.action_fav_add) to { Prefs.toggleFav(acc, key) },
             stringResource(R.string.action_rename) to { rename = key to v.name },
             stringResource(R.string.action_hide) to { Prefs.toggleHidden(acc, key) },
-        )) { menuFor = null }
+        )
+        if (inCat) {
+            acts += stringResource(R.string.action_move_up) to { Prefs.move(acc, "$kind:$cat", ids, v.id, -1) }
+            acts += stringResource(R.string.action_move_down) to { Prefs.move(acc, "$kind:$cat", ids, v.id, 1) }
+            acts += stringResource(R.string.action_move_top) to { Prefs.move(acc, "$kind:$cat", ids, v.id, -100_000) }
+            acts += stringResource(R.string.action_move_bottom) to { Prefs.move(acc, "$kind:$cat", ids, v.id, 100_000) }
+        }
+        ActionMenu(v.name, acts) { menuFor = null }
     }
     catMenu?.let { c ->
         val ck = "${kind}cat:${c.id}"
@@ -201,6 +210,9 @@ private fun VodBrowser(wide: Boolean, kind: String, cats: List<Category>, all: L
             stringResource(R.string.action_hide) to { Prefs.toggleHidden(acc, ck) },
             stringResource(R.string.action_move_up) to { Prefs.move(acc, "cats:$kind", cats.map { it.id }, c.id, -1) },
             stringResource(R.string.action_move_down) to { Prefs.move(acc, "cats:$kind", cats.map { it.id }, c.id, 1) },
+            stringResource(R.string.action_move_top) to { Prefs.move(acc, "cats:$kind", cats.map { it.id }, c.id, -100_000) },
+            stringResource(R.string.action_move_bottom) to { Prefs.move(acc, "cats:$kind", cats.map { it.id }, c.id, 100_000) },
+            stringResource(R.string.action_reset_order) to { Prefs.resetOrder(acc, "$kind:${c.id}") },
             stringResource(if (Prefs.isLockedManually(acc, lk)) R.string.action_unlock else R.string.action_lock) to {
                 Nav.guarded(true) { Prefs.toggleLock(acc, lk) }
             },

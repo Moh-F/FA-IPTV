@@ -142,9 +142,32 @@ fun SettingsScreen() {
         }
         item { Toggle(stringResource(R.string.set_info_top), s.infoTop) { v -> set { it.copy(infoTop = v) } } }
         item { Toggle(stringResource(R.string.set_info_tech), s.infoTech) { v -> set { it.copy(infoTech = v) } } }
+        item { Toggle(stringResource(R.string.set_show_speeds), s.showSpeeds) { v -> set { it.copy(showSpeeds = v) } } }
+        item { Toggle(stringResource(R.string.set_show_clock), s.showClock) { v -> set { it.copy(showClock = v) } } }
+        item { Toggle(stringResource(R.string.set_show_date), s.showDate) { v -> set { it.copy(showDate = v) } } }
+        item { Toggle(stringResource(R.string.set_clock24), s.clock24) { v -> set { it.copy(clock24 = v) } } }
+        item { Toggle(stringResource(R.string.set_clock_seconds), s.clockSeconds) { v -> set { it.copy(clockSeconds = v) } } }
+        item {
+            val now = System.currentTimeMillis()
+            val fmts = listOf("short", "day", "long").map { f ->
+                f to java.text.SimpleDateFormat(when (f) { "day" -> "EE, dd.MM."; "long" -> "EEEE, d. MMMM yyyy"; else -> "dd.MM.yyyy" }, com.mohdev.faiptv.core.Locales.num()).format(java.util.Date(now))
+            }
+            Row_(stringResource(R.string.set_date_format), fmts.first { it.first == s.dateFormat }.second) { ask(ctx.getString(R.string.set_date_format), fmts, s.dateFormat) { v -> set { it.copy(dateFormat = v) } } }
+        }
         item { Row_(stringResource(R.string.set_overlay_opacity), "${s.overlayOpacity}%") { ask(ctx.getString(R.string.set_overlay_opacity), listOf(40, 55, 70, 85, 100).map { it to "$it%" }, s.overlayOpacity) { v -> set { it.copy(overlayOpacity = v) } } } }
 
         item { Header(R.string.set_player_more) }
+        item { Toggle(stringResource(R.string.set_afr), s.afr) { v -> set { it.copy(afr = v) } } }
+        if (s.afr) item {
+            val opts = listOf(0 to stringResource(R.string.afr_none), 50 to "50 Hz", 60 to "60 Hz")
+            Row_(stringResource(R.string.set_afr_fallback), opts.first { it.first == s.afrFallback }.second) { ask(ctx.getString(R.string.set_afr_fallback), opts, s.afrFallback) { v -> set { it.copy(afrFallback = v) } } }
+        }
+        item {
+            val opts = listOf("normal" to stringResource(R.string.vodbuf_normal), "large" to stringResource(R.string.vodbuf_large), "max" to stringResource(R.string.vodbuf_max))
+            Row_(stringResource(R.string.set_vod_buffer), opts.first { it.first == s.vodBuffer }.second) { ask(ctx.getString(R.string.set_vod_buffer), opts, s.vodBuffer) { v -> set { it.copy(vodBuffer = v) } } }
+        }
+        item { Toggle(stringResource(R.string.set_vod_minibar), s.vodMiniBar) { v -> set { it.copy(vodMiniBar = v) } } }
+        item { Row_(stringResource(R.string.set_remind_min), "${s.remindMin} min") { ask(ctx.getString(R.string.set_remind_min), listOf(1, 2, 5, 10, 15, 30).map { it to "$it min" }, s.remindMin) { v -> set { it.copy(remindMin = v) } } } }
         item { Row_(stringResource(R.string.set_buffer), buffers.first { it.first == s.buffer }.second) { ask(ctx.getString(R.string.set_buffer), buffers, s.buffer) { v -> set { it.copy(buffer = v) } } } }
         if (UiEnv.pipSupported) item { Toggle(stringResource(R.string.set_auto_pip), s.autoPip) { v -> set { it.copy(autoPip = v) } } }
         item { Toggle(stringResource(R.string.set_auto_next), s.autoNext) { v -> set { it.copy(autoNext = v) } } }
@@ -174,11 +197,31 @@ fun SettingsScreen() {
         item { Row_(stringResource(R.string.set_locked_count, lockedCount), stringResource(R.string.set_locked_hint)) { if (lockedCount > 0) pinStep = 4 } }
 
         item { Header(R.string.set_data) }
+        item { Toggle(stringResource(R.string.set_badge), s.refreshBadge) { v -> set { it.copy(refreshBadge = v) } } }
+        if (s.refreshBadge) {
+            item {
+                val opts = listOf("tl" to stringResource(R.string.pos_tl), "tr" to stringResource(R.string.pos_tr), "bl" to stringResource(R.string.pos_bl), "br" to stringResource(R.string.pos_br))
+                Row_(stringResource(R.string.set_badge_pos), opts.first { it.first == s.badgePos }.second) { ask(ctx.getString(R.string.set_badge_pos), opts, s.badgePos) { v -> set { it.copy(badgePos = v) } } }
+            }
+            item {
+                val opts = listOf("s" to stringResource(R.string.size_s), "m" to stringResource(R.string.size_m), "l" to stringResource(R.string.size_l))
+                Row_(stringResource(R.string.set_info_size), opts.first { it.first == s.badgeSize }.second) { ask(ctx.getString(R.string.set_info_size), opts, s.badgeSize) { v -> set { it.copy(badgeSize = v) } } }
+            }
+            item {
+                val opts = listOf("accent" to stringResource(R.string.color_accent), "white" to stringResource(R.string.color_white), "amber" to stringResource(R.string.color_amber), "green" to stringResource(R.string.color_green))
+                Row_(stringResource(R.string.set_badge_color), opts.first { it.first == s.badgeColor }.second) { ask(ctx.getString(R.string.set_badge_color), opts, s.badgeColor) { v -> set { it.copy(badgeColor = v) } } }
+            }
+            item { Row_(stringResource(R.string.set_info_opacity), "${s.badgeOpacity}%") { ask(ctx.getString(R.string.set_info_opacity), listOf(40, 60, 85, 100).map { it to "$it%" }, s.badgeOpacity) { v -> set { it.copy(badgeOpacity = v) } } } }
+        }
+        item {
+            val opts = listOf("auto" to stringResource(R.string.dns_auto), "system" to stringResource(R.string.dns_system), "cloudflare" to "Cloudflare (1.1.1.1)", "google" to "Google (8.8.8.8)", "quad9" to "Quad9 (9.9.9.9)")
+            Row_(stringResource(R.string.set_dns), opts.first { it.first == s.dns }.second) { ask(ctx.getString(R.string.set_dns), opts, s.dns) { v -> set { it.copy(dns = v) } } }
+        }
         item {
             val n = acc?.let { Prefs.custom(it.id).hidden.size } ?: 0
             Row_(stringResource(R.string.set_hidden, n), stringResource(R.string.set_unhide_all)) { if (n > 0) confirm = ctx.getString(R.string.set_unhide_all) to { acc?.let { Prefs.unhideAll(it.id) } } }
         }
-        item { Row_(stringResource(R.string.set_refresh_hours), "${s.refreshHours} h") { ask(ctx.getString(R.string.set_refresh_hours), listOf(3, 6, 12, 24, 48, 168).map { it to "$it h" }, s.refreshHours) { v -> set { it.copy(refreshHours = v) } } } }
+        item { Row_(stringResource(R.string.set_refresh_hours), "${s.refreshHours} h") { ask(ctx.getString(R.string.set_refresh_hours), listOf(1, 3, 6, 12, 24).map { it to "$it h" }, s.refreshHours) { v -> set { it.copy(refreshHours = v) } } } }
         item {
             Row_(stringResource(R.string.set_clear_history), "") {
                 confirm = ctx.getString(R.string.set_clear_history) to {
